@@ -30,7 +30,7 @@
 - [Configuration Reference](#configuration-reference)
 - [Notes](#notes)
 
-## Overview
+## Overview 
 
 BreathX RAG is a FastAPI RAG backend purpose-built for **clinical asthma questions**. It ingests guideline PDFs (GINA, NICE, NHLBI), chunks them section-aware and embeds them into a pgvector store, and generates grounded, citation-backed answers — while refusing personal-symptom, out-of-scope, and emergency queries at the safety layer.
 
