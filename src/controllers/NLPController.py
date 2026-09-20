@@ -1,5 +1,5 @@
 from typing import List
-import re
+import re, asyncio
 
 from models.db_schemas import DataChunk
 from stores.llm.LLMEnums import DocumentType
@@ -23,6 +23,31 @@ class NLPController(BaseController):
         self.embedding_client=embedding_client
         self.template_parser=template_parser
         self.rerank_client=rerank_client
+        
+    _EXPAND_PATTERNS = [
+        (re.compile(r"\bmart\b|maintenance[-\s]?and[-\s]?reliever", re.I), "maintenance-and-reliever therapy ICS-formoterol budesonide formoterol as-needed single-inhaler combination"),
+        (re.compile(r"\bair\b|anti[-\s]?inflammatory reliever", re.I), "anti-inflammatory reliever low dose ICS-formoterol as-needed"),
+        (re.compile(r"\bics\b|inhaled corticosteroid", re.I), "inhaled corticosteroid controller preventer corticosteroid"),
+        (re.compile(r"\bsaba\b|short[-\s]?acting beta", re.I), "short-acting beta agonist reliever salbutamol albuterol SABA-only"),
+        (re.compile(r"\blaba\b|long[-\s]?acting beta", re.I), "long-acting beta agonist formoterol salmeterol"),
+        (re.compile(r"\baction plan\b|self[-\s]?management", re.I), "written asthma action plan personalised action plan monitor symptoms seek medical care"),
+        (re.compile(r"\bobesity\b|overweight|weight", re.I), "weight reduction 5-10% 5–10% improve asthma control obesity comorbidity"),
+        (re.compile(r"\binitial\b|newly diagnosed|first treatment", re.I), "initial pharmacological treatment low-dose ICS/formoterol as-needed AIR therapy"),
+        (re.compile(r"\bstep 1\b|step one", re.I), "Step 1 preferred treatment adults adolescents low dose ICS-formoterol"),
+        (re.compile(r"\bdiagnos", re.I), "confirm asthma diagnosis spirometry bronchodilator reversibility FeNO eosinophil variability"),
+        (re.compile(r"\bexercise\b|bronchospasm", re.I), "exercise-induced bronchospasm before exercise SABA LTRA cromolyn NHLBI"),
+        (re.compile(r"\bgina\b", re.I), "GINA 2026 Global Strategy for Asthma Management and Prevention GINA 2026 Summary Guide for Asthma Management and Prevention"),
+        (re.compile(r"\bnice\b|ng80|bts", re.I), "NICE Asthma: diagnosis monitoring and chronic asthma management NG80"),
+        (re.compile(r"\bnhlbi\b|naepp|epr4|epr[-\s]?4", re.I), "Asthma Quick Reference Guide 2020 NAEPP EPR-4 focused updates NHLBI"),
+        (re.compile(r"step[-\s]?down|stepped?\s+down|de-?escalat|reduc\w*\s+(treatment|therapy|dose)", re.I),
+        "stepping down maintenance therapy reduce controller dose de-escalation well-controlled asthma minimum effective treatment"),
+        (re.compile(r"non[-\s]?pharmacolog|smoking cessation|vaccination|immunisation|obesity|weight reduction", re.I),
+        "non-pharmacological strategies smoking cessation physical activity weight reduction vaccination obesity self-management GINA guideline recommendations"),
+        (re.compile(r"risk.*(exacerb|poor outcome|severe)|increased risk|identify.*risk|at risk", re.I),
+        "risk factors exacerbations severe exacerbation poor lung function FEV1 intubation past year emergency visit"),
+        (re.compile(r"preferred treatment|step.?1.*persistent|persistent.*step.?1", re.I),
+        "preferred treatment Step 1 persistent asthma low-dose ICS SABA as needed NHLBI stepwise approach"),
+    ]
         
         
     def create_collection_name(self,project_id:int):
@@ -106,18 +131,7 @@ class NLPController(BaseController):
         query_vector = None
         collection_name = self.create_collection_name(project_id=project.project_id)
         expanded_query = self.expand_query(text) if expand_query else text
-        # BM25/keyword search uses the RAW query to avoid precision dilution
-        # from the many OR'd expanded terms; vector embedding uses the full
-        # expanded query for richer semantic context.
         raw_query = text
-
-        vectors = await self.embedding_client.embed_text(
-            text=expanded_query,
-            document_type=DocumentType.QUERY.value
-        )
-
-        if vectors and isinstance(vectors, list) and len(vectors) > 0:
-            query_vector = vectors[0]
 
         if retrieval_mode == "keyword":
             results = await self.vectordb_client.search_by_keyword(
@@ -127,6 +141,12 @@ class NLPController(BaseController):
                 metadata_filter=metadata_filter,
             )
         elif retrieval_mode == "vector":
+            vectors = await self.embedding_client.embed_text(
+                text=expanded_query,
+                document_type=DocumentType.QUERY.value
+            )
+            if vectors and isinstance(vectors, list) and len(vectors) > 0:
+                query_vector = vectors[0]
             if query_vector is None:
                 return None
             results = await self.vectordb_client.search_by_vector(
@@ -137,15 +157,31 @@ class NLPController(BaseController):
                 metadata_filter=metadata_filter,
             )
         else:  # hybrid
+            embed_task = asyncio.ensure_future(self.embedding_client.embed_text(
+                text=expanded_query,
+                document_type=DocumentType.QUERY.value
+            ))
+            keyword_task = asyncio.ensure_future(self.vectordb_client.search_by_keyword(
+                collection_name=collection_name,
+                query=raw_query,
+                limit=limit,
+                metadata_filter=metadata_filter,
+            ))
+            vectors, keyword_results = await asyncio.gather(embed_task, keyword_task)
+
+            if vectors and isinstance(vectors, list) and len(vectors) > 0:
+                query_vector = vectors[0]
             if query_vector is None:
                 return None
+
+            settings = get_settings()
             results = await self.vectordb_client.search_hybrid(
                 collection_name=collection_name,
                 vector=query_vector,
                 query=raw_query,
                 limit=limit,
                 metadata_filter=metadata_filter,
-                rrf_k=get_settings().HYBRID_RRF_K,
+                rrf_k=settings.HYBRID_RRF_K,
             )
 
         if not results:
@@ -193,6 +229,7 @@ class NLPController(BaseController):
         settings=get_settings()
         conversation_block=self._build_conversation_block(conversation_history)
         retrieval_query=self._build_retrieval_query(query, conversation_history)
+        expanded_query = self.expand_query(retrieval_query) if expand_query else retrieval_query
         risk_assessment=self.classify_input_risk(query)
         refusal_answer=self._build_refusal_answer(risk_assessment)
         disclaimer=self._clinical_disclaimer()
@@ -203,7 +240,7 @@ class NLPController(BaseController):
             confidence["reason"]="blocked_by_safety_classifier"
             quality=self.build_answer_quality(refusal_answer, [], [], verify_claims=False)
             evidence_panel = {"total_retrieved": 0, "total_selected": 0, "retrieval_coverage": {"documents": [], "unique_documents": 0, "page_range": {}}, "chunks": []}
-            return refusal_answer, None, None, [], risk_assessment, confidence, quality, disclaimer, evidence_panel
+            return refusal_answer, None, None, [], risk_assessment, confidence, quality, disclaimer, evidence_panel, expanded_query
         
         retrived_document= await self.search_vector_db_collection(
             project=project,
@@ -221,7 +258,7 @@ class NLPController(BaseController):
             confidence=self._build_confidence([], [], question=query)
             quality=self.build_answer_quality("", [], [], verify_claims=False)
             evidence_panel = {"total_retrieved": 0, "total_selected": 0, "retrieval_coverage": {"documents": [], "unique_documents": 0, "page_range": {}}, "chunks": []}
-            return "", None, None, [], risk_assessment, confidence, quality, disclaimer, evidence_panel
+            return "", None, None, [], risk_assessment, confidence, quality, disclaimer, evidence_panel, expanded_query
         
         
         
@@ -250,7 +287,7 @@ class NLPController(BaseController):
             sources=self._build_sources(selected_documents)
             quality=self.build_answer_quality(refusal, sources, selected_documents, verify_claims=False)
             evidence_panel = self.build_evidence_panel(retrived_document, selected_documents)
-            return refusal, None, None, sources, risk_assessment, confidence, quality, disclaimer, evidence_panel
+            return refusal, None, None, sources, risk_assessment, confidence, quality, disclaimer, evidence_panel, expanded_query
 
         documnets_prompts="\n".join([
                 self._render_document_prompt(idx, doc)
@@ -299,7 +336,7 @@ class NLPController(BaseController):
         sources=self._build_sources(selected_documents) if include_sources else []
         quality=self.build_answer_quality(answer or "", sources, selected_documents, verify_claims=verify_claims)
 
-        max_regenerations = get_settings().ANSWER_MAX_VERIFICATION_REGENERATIONS
+        max_regenerations = settings.ANSWER_MAX_VERIFICATION_REGENERATIONS
         if verify_claims and answer and max_regenerations > 0:
             for attempt in range(1, max_regenerations + 1):
                 if quality["citation_faithfulness"] >= 1.0 and quality["unsupported_claim_rate"] == 0.0:
@@ -340,7 +377,205 @@ class NLPController(BaseController):
                 quality=self.build_answer_quality(answer, sources, selected_documents, verify_claims=verify_claims)
 
         evidence_panel = self.build_evidence_panel(retrived_document, selected_documents)
-        return answer , full_prompt , chat_history, sources, risk_assessment, confidence, quality, disclaimer, evidence_panel
+        confidence = self._apply_post_generation_confidence(confidence, quality)
+        return answer , full_prompt , chat_history, sources, risk_assessment, confidence, quality, disclaimer, evidence_panel, expanded_query
+
+
+    @staticmethod
+    def _sse_event(event_type: str, data: dict) -> str:
+        return f"event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False, default=str)}\n\n"
+
+    async def answer_rag_question_stream(self, project: Project, query: str, limit: int = 5,
+                                          score_threshold: float = None,
+                                          metadata_filter: dict = None,
+                                          include_sources: bool = True,
+                                          retrieval_mode: str = "hybrid",
+                                          rerank: bool = True,
+                                          rerank_top_k: int = None,
+                                          expand_query: bool = True,
+                                          verify_claims: bool = True,
+                                          conversation_history: list = None):
+        settings = get_settings()
+        disclaimer = self._clinical_disclaimer()
+
+        yield self._sse_event("phase", {"phase": "classifying"})
+
+        conversation_block = self._build_conversation_block(conversation_history)
+        retrieval_query = self._build_retrieval_query(query, conversation_history)
+        expanded_query = self.expand_query(retrieval_query) if expand_query else retrieval_query
+        risk_assessment = self.classify_input_risk(query)
+        refusal_answer = self._build_refusal_answer(risk_assessment)
+
+        if risk_assessment["risk_level"] == "refuse_redirect":
+            confidence = self._build_confidence([], [], question=query)
+            confidence["generation_allowed"] = False
+            confidence["reason"] = "blocked_by_safety_classifier"
+            quality = self.build_answer_quality(refusal_answer, [], [], verify_claims=False)
+            evidence_panel = {"total_retrieved": 0, "total_selected": 0, "retrieval_coverage": {"documents": [], "unique_documents": 0, "page_range": {}}, "chunks": []}
+            yield self._sse_event("done", {
+                "answer": refusal_answer, "sources": [], "risk_assessment": risk_assessment,
+                "confidence": confidence, "quality": quality, "disclaimer": disclaimer,
+                "evidence_panel": evidence_panel, "expanded_query": expanded_query,
+            })
+            return
+
+        yield self._sse_event("phase", {"phase": "retrieving"})
+
+        retrived_document = await self.search_vector_db_collection(
+            project=project, text=retrieval_query,
+            limit=max(limit, settings.RETRIEVAL_TOP_K),
+            score_threshold=score_threshold if score_threshold is not None else settings.RETRIEVAL_SCORE_THRESHOLD,
+            metadata_filter=metadata_filter, retrieval_mode=retrieval_mode,
+            rerank=rerank, rerank_top_k=rerank_top_k or settings.RERANK_TOP_K,
+            expand_query=expand_query,
+        )
+
+        if not retrived_document or len(retrived_document) == 0:
+            confidence = self._build_confidence([], [], question=query)
+            quality = self.build_answer_quality("", [], [], verify_claims=False)
+            evidence_panel = {"total_retrieved": 0, "total_selected": 0, "retrieval_coverage": {"documents": [], "unique_documents": 0, "page_range": {}}, "chunks": []}
+            yield self._sse_event("done", {
+                "answer": "", "sources": [], "risk_assessment": risk_assessment,
+                "confidence": confidence, "quality": quality, "disclaimer": disclaimer,
+                "evidence_panel": evidence_panel, "expanded_query": expanded_query,
+            })
+            return
+
+        if rerank:
+            yield self._sse_event("phase", {"phase": "reranking"})
+
+        yield self._sse_event("phase", {"phase": "checking_evidence"})
+
+        system_prompt = self.template_parser.get("rag", "system_prompt")
+        reserved_chars = FOOTER_RESERVE_CHARS + len(query) + len(conversation_block) + 50
+        selected_documents = self._select_documents_for_prompt(
+            retrived_document=retrived_document,
+            max_documents=limit or settings.ANSWER_TOP_K,
+            max_context_chars=settings.MAX_CONTEXT_CHARS,
+            reserved_chars=reserved_chars,
+        )
+        confidence = self._build_confidence(retrived_document, selected_documents, question=query)
+
+        if not confidence["generation_allowed"]:
+            refusals = (get_safety_config().get("refusals") or {})
+            refusal = refusals.get("insufficient_official_evidence",
+                "I do not have enough official guideline evidence to answer this safely. "
+                "Please consult a qualified healthcare professional or ask a question "
+                "within the indexed asthma guideline scope.")
+            sources = self._build_sources(selected_documents)
+            quality = self.build_answer_quality(refusal, sources, selected_documents, verify_claims=False)
+            evidence_panel = self.build_evidence_panel(retrived_document, selected_documents)
+            yield self._sse_event("done", {
+                "answer": refusal, "sources": sources, "risk_assessment": risk_assessment,
+                "confidence": confidence, "quality": quality, "disclaimer": disclaimer,
+                "evidence_panel": evidence_panel, "expanded_query": expanded_query,
+            })
+            return
+
+        documnets_prompts = "\n".join([
+            self._render_document_prompt(idx, doc)
+            for idx, doc in enumerate(selected_documents)
+        ])
+        footer_prompt = self.template_parser.get("rag", "footer_prompt")
+
+        if risk_assessment["risk_level"] == "needs_caution":
+            footer_prompt = (
+                "SAFETY NOTE: The user appears to be asking about a specific person's "
+                "symptoms. Your answer MUST begin by clearly stating that you cannot "
+                "provide a diagnosis or prescribe medication without a clinical "
+                "assessment, and that they should consult a qualified healthcare "
+                "professional. Then you may share the relevant general guideline "
+                "information from the documents above, with citations.\n\n"
+                + footer_prompt
+            )
+
+        chat_history = [
+            self.generation_client.construct_prompt(
+                prompt=system_prompt,
+                role=self.generation_client.enums.SYSTEM.value,
+            )
+        ]
+        full_prompt = "\n\n".join(filter(None, [
+            documnets_prompts, conversation_block,
+            f"## User Question:\n{query}", footer_prompt,
+        ]))
+
+        yield self._sse_event("phase", {"phase": "generating"})
+
+        answer = ""
+        try:
+            async for token in self.generation_client.generate_text_stream(
+                prompt=full_prompt, chat_history=chat_history
+            ):
+                answer += token
+                yield self._sse_event("token", {"token": token})
+        except Exception:
+            answer = None
+
+        if answer is None:
+            answer = await self.generation_client.generate_text(
+                prompt=full_prompt, chat_history=chat_history
+            )
+            if answer:
+                yield self._sse_event("phase", {"phase": "generating"})
+                yield self._sse_event("token", {"token": answer, "full": True})
+
+        if risk_assessment["risk_level"] == "needs_caution" and answer:
+            answer = (
+                "I can't diagnose this person or prescribe medication without a "
+                "clinical assessment. Please consult a qualified healthcare "
+                "professional. Here is general information from the guidelines:\n\n"
+            ) + answer
+
+        sources = self._build_sources(selected_documents) if include_sources else []
+        yield self._sse_event("phase", {"phase": "verifying"})
+        quality = self.build_answer_quality(answer or "", sources, selected_documents, verify_claims=verify_claims)
+
+        max_regenerations = settings.ANSWER_MAX_VERIFICATION_REGENERATIONS
+        if verify_claims and answer and max_regenerations > 0:
+            for attempt in range(1, max_regenerations + 1):
+                if quality["citation_faithfulness"] >= 1.0 and quality["unsupported_claim_rate"] == 0.0:
+                    break
+
+                yield self._sse_event("phase", {"phase": "regenerating"})
+
+                correction_footer = (
+                    "IMPORTANT: Your previous answer draft failed automated verification: "
+                    "every factual claim must carry the citation [Document Name, p. PAGE] using the "
+                    "EXACT document names from the '## Document Name' headers above. "
+                    "Rewrite the answer from scratch, using ONLY the documents above, cite every claim, "
+                    "and do not add pleasantries or restate the question."
+                )
+                chat_history = [
+                    self.generation_client.construct_prompt(
+                        prompt=system_prompt,
+                        role=self.generation_client.enums.SYSTEM.value,
+                    )
+                ]
+                full_prompt = "\n\n".join(filter(None, [
+                    documnets_prompts, conversation_block,
+                    f"## User Question:\n{query}", correction_footer,
+                ]))
+                retry_answer = await self.generation_client.generate_text(
+                    prompt=full_prompt, chat_history=chat_history
+                )
+                if not retry_answer:
+                    break
+                answer = retry_answer
+                if risk_assessment["risk_level"] == "needs_caution":
+                    answer = (
+                        "I can't diagnose this person or prescribe medication without a "
+                        "clinical assessment. Please consult a qualified healthcare "
+                        "professional. Here is general information from the guidelines:\n\n"
+                    ) + answer
+                quality = self.build_answer_quality(answer, sources, selected_documents, verify_claims=verify_claims)
+
+        evidence_panel = self.build_evidence_panel(retrived_document, selected_documents)
+        yield self._sse_event("done", {
+            "answer": answer, "sources": sources, "risk_assessment": risk_assessment,
+            "confidence": confidence, "quality": quality, "disclaimer": disclaimer,
+            "evidence_panel": evidence_panel, "expanded_query": expanded_query,
+        })
 
     CONVERSATION_CONTEXT_TURNS = 3
     CONVERSATION_ANSWER_CHARS = 400
@@ -401,33 +636,9 @@ class NLPController(BaseController):
         text=query or ""
         lowered=text.lower()
         expansions=[]
-        rules=[
-            (r"\bmart\b|maintenance[-\s]?and[-\s]?reliever", "maintenance-and-reliever therapy ICS-formoterol budesonide formoterol as-needed single-inhaler combination"),
-            (r"\bair\b|anti[-\s]?inflammatory reliever", "anti-inflammatory reliever low dose ICS-formoterol as-needed"),
-            (r"\bics\b|inhaled corticosteroid", "inhaled corticosteroid controller preventer corticosteroid"),
-            (r"\bsaba\b|short[-\s]?acting beta", "short-acting beta agonist reliever salbutamol albuterol SABA-only"),
-            (r"\blaba\b|long[-\s]?acting beta", "long-acting beta agonist formoterol salmeterol"),
-            (r"\baction plan\b|self[-\s]?management", "written asthma action plan personalised action plan monitor symptoms seek medical care"),
-            (r"\bobesity\b|overweight|weight", "weight reduction 5-10% 5–10% improve asthma control obesity comorbidity"),
-            (r"\binitial\b|newly diagnosed|first treatment", "initial pharmacological treatment low-dose ICS/formoterol as-needed AIR therapy"),
-            (r"\bstep 1\b|step one", "Step 1 preferred treatment adults adolescents low dose ICS-formoterol"),
-            (r"\bdiagnos", "confirm asthma diagnosis spirometry bronchodilator reversibility FeNO eosinophil variability"),
-            (r"\bexercise\b|bronchospasm", "exercise-induced bronchospasm before exercise SABA LTRA cromolyn NHLBI"),
-            (r"\bgina\b", "GINA 2026 Global Strategy for Asthma Management and Prevention GINA 2026 Summary Guide for Asthma Management and Prevention"),
-            (r"\bnice\b|ng80|bts", "NICE Asthma: diagnosis monitoring and chronic asthma management NG80"),
-            (r"\bnhlbi\b|naepp|epr4|epr[-\s]?4", "Asthma Quick Reference Guide 2020 NAEPP EPR-4 focused updates NHLBI"),
-            (r"step[-\s]?down|stepped?\s+down|de-?escalat|reduc\w*\s+(treatment|therapy|dose)", 
-            "stepping down maintenance therapy reduce controller dose de-escalation well-controlled asthma minimum effective treatment"),
-            (r"non[-\s]?pharmacolog|smoking cessation|vaccination|immunisation|obesity|weight reduction",
-            "non-pharmacological strategies smoking cessation physical activity weight reduction vaccination obesity self-management GINA guideline recommendations"),
-            (r"risk.*(exacerb|poor outcome|severe)|increased risk|identify.*risk|at risk",
-            "risk factors exacerbations severe exacerbation poor lung function FEV1 intubation past year emergency visit"),
-            (r"preferred treatment|step.?1.*persistent|persistent.*step.?1",
-            "preferred treatment Step 1 persistent asthma low-dose ICS SABA as needed NHLBI stepwise approach"),
-        ]
 
-        for pattern, expansion in rules:
-            if re.search(pattern, lowered, re.IGNORECASE):
+        for pat, expansion in self._EXPAND_PATTERNS:
+            if pat.search(lowered):
                 expansions.append(expansion)
 
         if not expansions:
@@ -440,52 +651,8 @@ class NLPController(BaseController):
                                        limit: int, metadata_filter: dict = None,
                                        score_threshold: float = None,
                                        fallback_results: list = None):
-        settings=get_settings()
-        candidate_groups=[]
-
-        if fallback_results:
-            candidate_groups.append(fallback_results)
-
-        try:
-            vector_results=await self.vectordb_client.search_by_vector(
-                collection_name=collection_name,
-                vector=vector,
-                limit=limit,
-                score_threshold=score_threshold,
-                metadata_filter=metadata_filter,
-            )
-            if vector_results:
-                candidate_groups.append(vector_results)
-        except NotImplementedError:
-            pass
-
-        try:
-            keyword_results=await self.vectordb_client.search_by_keyword(
-                collection_name=collection_name,
-                query=query,
-                limit=limit,
-                metadata_filter=metadata_filter,
-            )
-            if keyword_results:
-                candidate_groups.append(keyword_results)
-        except NotImplementedError:
-            pass
-
-        try:
-            hybrid_results=await self.vectordb_client.search_hybrid(
-                collection_name=collection_name,
-                vector=vector,
-                query=query,
-                limit=limit,
-                metadata_filter=metadata_filter,
-                rrf_k=settings.HYBRID_RRF_K,
-            )
-            if hybrid_results:
-                candidate_groups.append(hybrid_results)
-        except NotImplementedError:
-            pass
-
-        return self._dedupe_documents(candidate_groups)[:limit]
+        candidates = fallback_results or []
+        return self._dedupe_documents([candidates])[:limit]
 
     @staticmethod
     def _dedupe_documents(candidate_groups: list):
@@ -681,6 +848,33 @@ class NLPController(BaseController):
             "generation_allowed": generation_allowed,
             "reason": reason,
         }
+
+    _CONFIDENCE_DOWNGRADE = {"high": "medium", "medium": "low", "low": "low"}
+
+    @classmethod
+    def _apply_post_generation_confidence(cls, confidence: dict, quality: dict):
+        """Slide 11 ('Add a confidence level') requires confidence to reflect
+        citation coverage and safety checks, not just the pre-generation
+        retrieval score. `_build_confidence` runs before generation (it gates
+        whether generation happens at all) and must stay a pure pre-generation
+        signal for its existing tests. This folds the post-generation
+        citation/claim verification outcome into a copy shown to the caller,
+        without touching the gate itself."""
+        level = confidence.get("confidence_level")
+        if level not in cls._CONFIDENCE_DOWNGRADE:
+            return confidence
+
+        failed_verification = (
+            quality.get("citation_faithfulness", 1.0) < 1.0
+            or quality.get("unsupported_claim_rate", 0.0) > 0.0
+        )
+        if not failed_verification:
+            return confidence
+
+        downgraded = dict(confidence)
+        downgraded["confidence_level"] = cls._CONFIDENCE_DOWNGRADE[level]
+        downgraded["downgrade_reason"] = "citation_or_claim_verification_failed"
+        return downgraded
 
     @staticmethod
     def _build_confidence_summary(confidence: dict):
@@ -892,8 +1086,9 @@ class NLPController(BaseController):
             if citation.get("supported") and citation.get("source_chunk_id") is not None
         }
 
+        sources_cache = self._build_sources(selected_documents)
         for claim in self._extract_claims(answer):
-            claim_citations=self.verify_citations(claim, self._build_sources(selected_documents))
+            claim_citations=self.verify_citations(claim, sources_cache)
             supported_citations=[citation for citation in claim_citations if citation.get("supported")]
             evidence_text=self._evidence_text_for_claim(selected_documents, supported_citations, cited_chunk_ids)
             support_score=self._claim_support_score(claim, evidence_text)
