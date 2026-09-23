@@ -1,2 +1,7 @@
-mongodb
+# Real secrets - never commit
 .env
+env/.env
+env/.env.*
+
+# Templates - safe to commit
+!env/*.example*

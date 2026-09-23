@@ -1,37 +1,216 @@
 services:
-  # mongodb:
-  #   image: mongo:7-jammy
-  #   container_name: mongodb
-  #   ports:
-  #     - "27017:27017"
-  #   volumes:
-  #     - ./mongodb:/data/db
-    
-  #   environment:
-  #     - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
-  #     - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
-  #   networks:
-  #   - backend
 
-  #   restart: always
+  # =========================
+  # FastAPI
+  # =========================
+  fastapi:
+    build:
+      context: ..
+      dockerfile: docker/breathX/Dockerfile
 
-  pgvector:
-    image: pgvector/pgvector:0.8.5-pg18-trixie
-    container_name: pgvector
+    container_name: fastapi
+
     ports:
-      - "5433:5432"
+      - "8000:8000"
+
     volumes:
-      - pgvector_data:/var/lib/postgresql
-    environment:
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - fastapi_data:/app/assets
+
     networks:
-    - backend
+      - backend
+
+    restart: always
+
+    depends_on:
+      pgvector:
+        condition: service_healthy
+
+    env_file:
+      - ./env/.env.app
+
+
+  # =========================
+  # Nginx
+  # =========================
+
+
+  nginx:
+    image: nginx:stable-alpine3.20-perl
+    container_name: nginx
+    ports:
+      - "80:80"
+
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+
+    depends_on:
+      - fastapi
+    networks:
+      - backend
+    restart: always
+
+
+
+  # =========================
+  # PostgreSQL + pgvector
+  # =========================
+  pgvector:
+    image: pgvector/pgvector:0.8.0-pg17
+
+    container_name: pgvector
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - pgvector:/var/lib/postgresql/data
+
+    env_file:
+      - ./env/.env.postgres
+
+    networks:
+      - backend
+
+    restart: always
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+
+  # =========================
+  # Qdrant
+  # =========================
+  qdrant:
+    image: qdrant/qdrant:v1.13.6
+
+    container_name: qdrant
+
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+    networks:
+      - backend
 
     restart: always
 
 
+  # =========================
+  # Prometheus
+  # =========================
+  prometheus:
+    image: prom/prometheus:v3.3.0
+
+    container_name: prometheus
+
+    ports:
+      - "9090:9090"
+
+    volumes:
+      - prometheus_data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+
+    networks:
+      - backend
+
+    restart: always
+
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
+
+
+  # =========================
+  # Grafana
+  # =========================
+  grafana:
+    image: grafana/grafana:10.0.1
+
+    container_name: grafana
+
+    ports:
+      - "3000:3000"
+
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+    networks:
+      - backend
+
+    restart: always
+
+
+  # =========================
+  # Node Exporter
+  # =========================
+  node_exporter:
+    image: prom/node-exporter:latest
+
+    container_name: node-exporter
+
+    ports:
+      - "9100:9100"
+
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.rootfs=/rootfs"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)"
+
+    networks:
+      - backend
+
+    restart: always
+
+
+  # =========================
+  # PostgreSQL Exporter
+  # =========================
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+
+    container_name: postgres_exporter
+
+    ports:
+      - "9187:9187"
+
+    env_file:
+      - ./env/.env.postgres.exporter
+
+    networks:
+      - backend
+
+    restart: always
+
+
+# =========================
+# Network
+# =========================
 networks:
   backend:
+    driver: bridge
 
+# =========================
+# Volumes
+# =========================
 volumes:
-  pgvector_data:
+  fastapi_data:
+  pgvector:
+  qdrant_data:
+  prometheus_data:
+  grafana_data:

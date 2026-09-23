@@ -8,6 +8,7 @@ from ..VectorDBEnums import (
 from typing import List
 from models.db_schemas import RetrivedDocument
 from sqlalchemy.sql import text as sql_text
+from sqlalchemy.exc import IntegrityError
 import json, re, asyncio
 import logging
 
@@ -59,8 +60,13 @@ class PGVectorProvider(VectorDBInterface):
     # ------------------------------------------------------------------ #
     async def connect(self):
         async with self.db_client() as session:
-            async with session.begin():
-                await session.execute(sql_text("CREATE EXTENSION IF NOT EXISTS vector"))
+            try:
+                async with session.begin():
+                    await session.execute(sql_text("CREATE EXTENSION IF NOT EXISTS vector"))
+            except IntegrityError:
+                # Multiple uvicorn workers create the extension concurrently;
+                # the losers get a duplicate-key error. Safe to ignore.
+                await session.rollback()
 
     async def disconnect(self):
         pass
