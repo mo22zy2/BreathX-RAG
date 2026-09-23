@@ -1,5 +1,7 @@
+# Real secrets - never commit
 .env
-env/.env*
+env/.env
+env/.env.*
 
-!env/.env.*.example
-
+# Templates - safe to commit
+!env/*.example*

@@ -146,7 +146,7 @@ cd docker
 docker-compose up -d
 ```
 
-Host port `5433`; the `clinical_rag` database is created automatically.
+Host port `5433`; the `breathX` database is created automatically.
 
 ### 2. Install dependencies
 

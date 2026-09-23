@@ -7,7 +7,7 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
-env/
+/env/
 
 # OS
 .DS_Store
@@ -34,11 +34,12 @@ eval/answer_rows_*.json
 eval/retrieval_rows_*.json
 eval/chunk_diagnostics_*.md
 eval/benchmark_dashboard_*.md
-src/models/db_schemas/mini_rag/alembic/env.py
-src/models/db_schemas/mini_rag/alembic.ini
+src/models/db_schemas/breathx_rag/alembic/env.py
+src/models/db_schemas/breathx_rag/alembic.ini
 eval/clinical_questions.json
 eval/answer_cases.json
-Dataset/manifest.json
-Dataset/clinical_scope.md
+Dataset/
 AGENTS.md
 2026-08-18-113643-now-fetch-all-the-code-files-to-see-what-needs-to.txt
+Requirements.md
+docker/breathX/alembic.ini
