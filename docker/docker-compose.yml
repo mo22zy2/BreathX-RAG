@@ -144,6 +144,9 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
 
+    env_file:
+      - ./env/.env.grafana
+
     networks:
       - backend
 
@@ -160,11 +163,14 @@ services:
 
     ports:
       - "9100:9100"
+  
 
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
+
+  
 
     command:
       - "--path.procfs=/host/proc"
