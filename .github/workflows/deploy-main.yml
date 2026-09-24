@@ -126,5 +126,5 @@ jobs:
             done
 
             echo "======================================"
-            echo "✅ DEPLOYMENT COMPLETED SUCCESSFULLY"
+            echo "✅  DEPLOYMENT COMPLETED SUCCESSFULLY"
             echo "======================================"
