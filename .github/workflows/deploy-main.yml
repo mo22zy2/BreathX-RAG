@@ -20,60 +20,84 @@ jobs:
           username: github_user
           key: ${{ secrets.SSH_MAIN_PRIVATE_KEY }}
           script: |
-            set -e
+            set -Eeuo pipefail
 
             cd /home/github_user/workspace/BreathX-RAG
 
-            echo "📥 Fetching latest main branch..."
+            echo "📥 Updating repository..."
             git fetch origin main
-
-            echo "🔄 Updating server..."
             git checkout main
             git reset --hard origin/main
+
+            echo "🔄 Reloading systemd..."
+            sudo systemctl daemon-reload
 
             echo "🚀 Restarting BreathX service..."
             sudo systemctl restart breathx.service
 
-            echo "⏳ Waiting for service to start..."
-            sleep 5
+            echo "⏳ Waiting for service..."
 
-            echo "🔍 Checking port 80..."
-
-            for i in {1..6}; do
-              if ss -tuln | grep -q ':80 '; then
-                echo "✅ Port 80 is now active."
+            for i in {1..12}; do
+              if sudo systemctl is-active --quiet breathx.service; then
+                echo "✅ breathx.service is active."
                 break
-              else
-                echo "⏳ Port 80 not ready yet. Retrying in 5 seconds..."
-                sleep 5
               fi
+
+              echo "⏳ Service not active yet. Attempt $i/12..."
+
+              if [ "$i" -eq 12 ]; then
+                echo "❌ Service failed to become active."
+
+                echo "===== SYSTEMD STATUS ====="
+                sudo systemctl status breathx.service --no-pager || true
+
+                echo "===== SERVICE LOGS ====="
+                sudo journalctl -u breathx.service -n 100 --no-pager || true
+
+                echo "===== LISTENING PORTS ====="
+                sudo ss -ltnp || true
+
+                exit 1
+              fi
+
+              sleep 5
             done
 
-            if ! ss -tuln | grep -q ':80 '; then
-              echo "❌ Service failed to start on port 80"
+            echo "🌐 Checking HTTP connection..."
 
-              echo "📋 Service status:"
-              sudo systemctl status breathx.service --no-pager || true
+            for i in {1..12}; do
+              if curl \
+                --fail \
+                --silent \
+                --show-error \
+                --connect-timeout 2 \
+                http://127.0.0.1/; then
 
-              echo "📋 Recent service logs:"
-              sudo journalctl -u breathx.service -n 50 --no-pager || true
+                echo ""
+                echo "✅ HTTP check passed."
+                break
+              fi
 
-              exit 1
-            fi
+              echo "⏳ HTTP endpoint not ready. Attempt $i/12..."
 
-            echo "🔍 Checking systemd service..."
+              if [ "$i" -eq 12 ]; then
+                echo "❌ HTTP check failed."
 
-            if sudo systemctl is-active --quiet breathx.service; then
-              echo "✅ breathx.service is active."
-            else
-              echo "❌ breathx.service is not active."
+                echo "===== LISTENING PORTS ====="
+                sudo ss -ltnp || true
 
-              sudo systemctl status breathx.service --no-pager || true
-              sudo journalctl -u breathx.service -n 50 --no-pager || true
+                echo "===== SYSTEMD STATUS ====="
+                sudo systemctl status breathx.service --no-pager || true
 
-              exit 1
-            fi
+                echo "===== SERVICE LOGS ====="
+                sudo journalctl -u breathx.service -n 100 --no-pager || true
+
+                exit 1
+              fi
+
+              sleep 5
+            done
 
             echo "======================================"
-            echo "✅ Deployment completed successfully!"
+            echo "✅ DEPLOYMENT COMPLETED SUCCESSFULLY"
             echo "======================================"
