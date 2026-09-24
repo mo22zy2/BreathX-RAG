@@ -24,18 +24,29 @@ jobs:
 
             cd /home/github_user/workspace/BreathX-RAG
 
-            echo "📥 Updating repository..."
+            echo "======================================"
+            echo "📥 Updating repository"
+            echo "======================================"
+
             git fetch origin main
             git checkout main
             git reset --hard origin/main
 
-            echo "🔄 Reloading systemd..."
+            echo "======================================"
+            echo "🔄 Reloading systemd"
+            echo "======================================"
+
             sudo systemctl daemon-reload
 
-            echo "🚀 Restarting BreathX service..."
+            echo "======================================"
+            echo "🚀 Restarting BreathX service"
+            echo "======================================"
+
             sudo systemctl restart breathx.service
 
-            echo "⏳ Waiting for service..."
+            echo "======================================"
+            echo "⏳ Waiting for service"
+            echo "======================================"
 
             for i in {1..12}; do
               if sudo systemctl is-active --quiet breathx.service; then
@@ -54,6 +65,9 @@ jobs:
                 echo "===== SERVICE LOGS ====="
                 sudo journalctl -u breathx.service -n 100 --no-pager || true
 
+                echo "===== DOCKER CONTAINERS ====="
+                sudo docker compose -f docker/docker-compose.yml ps || true
+
                 echo "===== LISTENING PORTS ====="
                 sudo ss -ltnp || true
 
@@ -63,14 +77,18 @@ jobs:
               sleep 5
             done
 
-            echo "🌐 Checking HTTP connection..."
+            echo "======================================"
+            echo "🌐 Checking HTTP connection"
+            echo "======================================"
 
             for i in {1..12}; do
               if curl \
                 --fail \
                 --silent \
                 --show-error \
+                --location \
                 --connect-timeout 2 \
+                --max-time 5 \
                 http://127.0.0.1/; then
 
                 echo ""
@@ -85,6 +103,15 @@ jobs:
 
                 echo "===== LISTENING PORTS ====="
                 sudo ss -ltnp || true
+
+                echo "===== DOCKER CONTAINERS ====="
+                sudo docker compose -f docker/docker-compose.yml ps || true
+
+                echo "===== NGINX LOGS ====="
+                sudo docker compose -f docker/docker-compose.yml logs --tail=100 nginx || true
+
+                echo "===== FASTAPI LOGS ====="
+                sudo docker compose -f docker/docker-compose.yml logs --tail=100 fastapi || true
 
                 echo "===== SYSTEMD STATUS ====="
                 sudo systemctl status breathx.service --no-pager || true
