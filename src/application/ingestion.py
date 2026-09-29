@@ -14,7 +14,8 @@ from typing import Optional
 import aiofiles
 from tqdm.auto import tqdm
 
-from controllers import DataController, ProjectController, ProcessController, NLPController
+from controllers import DataController, ProjectController, NLPController
+from controllers.ProccesController import ProcessController
 from domain.exceptions import ValidationError
 from helpers.config import get_settings
 from models.AssetModel import AssetModel

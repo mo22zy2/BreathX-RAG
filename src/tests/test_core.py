@@ -30,6 +30,18 @@ if "controllers" not in sys.modules:
 # Helpers — create a minimal NLPController without a live DB / LLM
 # ---------------------------------------------------------------------------
 
+def _controller_module():
+    """The real NLPController *subpackage* module object (importlib is
+    shadowing-proof: `controllers/__init__` re-exports the NLPController
+    *class* under the same name, so dotted patch() targets resolve to the
+    class and have no `get_settings` attribute).
+
+    The controller delegate reads settings lazily from this namespace, so
+    patching here flows through exactly like the old module attribute did."""
+    import importlib
+    return importlib.import_module("controllers.NLPController")
+
+
 def _make_controller():
     from controllers.NLPController import NLPController
     ctrl = NLPController(
@@ -163,7 +175,7 @@ class TestConfidenceGate:
 
     def test_medium_confidence(self):
         retrieved = [self._doc(0.40) for _ in range(3)]
-        with patch("controllers.NLPController.get_settings") as mock_settings:
+        with patch.object(_controller_module(), "get_settings") as mock_settings:
             mock_settings.return_value.ANSWER_MIN_TOP_SCORE = 0.0
             mock_settings.return_value.ANSWER_MIN_EVIDENCE_COUNT = 1
             c = self.ctrl._build_confidence(retrieved, retrieved)
@@ -172,7 +184,7 @@ class TestConfidenceGate:
 
     def test_low_confidence(self):
         retrieved = [self._doc(0.15) for _ in range(3)]
-        with patch("controllers.NLPController.get_settings") as mock_settings:
+        with patch.object(_controller_module(), "get_settings") as mock_settings:
             mock_settings.return_value.ANSWER_MIN_TOP_SCORE = 0.0
             mock_settings.return_value.ANSWER_MIN_EVIDENCE_COUNT = 1
             c = self.ctrl._build_confidence(retrieved, retrieved)
