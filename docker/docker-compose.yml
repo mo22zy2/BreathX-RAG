@@ -209,76 +209,6 @@ services:
       - backend
 
     restart: always
-
-  # =========================
-  # RabbitMQ
-  # =========================
-
-  rabbitmq:
-    image: rabbitmq:4.1.2-management-alpine
-    container_name: rabbitmq
-    ports:
-      - "5672:5672"       # AMQP
-      - "15672:15672"     # Management UI
-
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
-
-    env_file:
-      - ./env/.env.rabbitmq
-
-    networks:
-      - backend
-
-    restart: always
-
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 10s
-      timeout: 10s
-      retries: 5
-
-  # =========================
-  # Redis
-  # =========================
-
-  redis:
-    image: redis:8.0.3-alpine
-    container_name: redis
-    ports:
-      - "6379:6379"
-
-    volumes:
-      - redis_data:/data
-
-    env_file:
-      - ./env/.env.redis
-
-    command:
-      - redis-server
-      - --appendonly
-      - "yes"
-      - --maxmemory
-      - 512mb
-      - --maxmemory-policy
-      - allkeys-lru
-      - --protected-mode
-      - "yes"
-      - --requirepass
-      - ${REDIS_PASSWORD}
-
-    networks:
-      - backend
-
-    restart: always
-
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
-      interval: 10s
-      timeout: 10s
-      retries: 5
-
 # =========================
 # Network
 # =========================
@@ -295,5 +225,3 @@ volumes:
   qdrant_data:
   prometheus_data:
   grafana_data:
-  rabbitmq_data:
-  redis_data:
