@@ -4,7 +4,7 @@ from helpers.config import get_settings,Settings
 from auth.jwt import get_current_user
 from models.ProjectModel import ProjectModel
 from models import Response
-from .schemes.data import ProccessRequest
+from .schemes.data import ProcessRequest
 from application.ingestion import UploadService, ProcessService, ProcessOptions
 
 from typing import Optional
@@ -68,7 +68,7 @@ async def upload_data(
     
 @data_router.post("/process/{project_id}")
 
-async def process_endpoint(request:Request,project_id:int,process_request:ProccessRequest, current_user: str = Depends(get_current_user)):
+async def process_endpoint(request:Request,project_id:int,process_request:ProcessRequest, current_user: str = Depends(get_current_user)):
     
     project = await ProjectModel(db_client=request.app.db_client).get_project_or_create_one(project_id=project_id)
     

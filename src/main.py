@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from routes import base, data ,nlp, login
 from helpers.config import get_settings
 from domain.exceptions import BreathXError
+from models.db_schemas.startup_checks import ensure_chunks_indexed_column
 from stores.llm.LLMProviderFactory import LLMProviderFactory
 from stores.vectordb.VectorDBProviderFactory import VectorDBProviderFactory
 from stores.rerank.RerankProviderFactory import RerankProviderFactory
@@ -53,11 +54,7 @@ async def lifespan(app: FastAPI):
 
     await app.vectordb_client.connect()
 
-    async with app.db_engine.connect() as conn:
-        await conn.execute(__import__('sqlalchemy').text(
-            "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS chunk_indexed BOOLEAN NOT NULL DEFAULT FALSE"
-        ))
-        await conn.commit()
+    await ensure_chunks_indexed_column(app.db_engine)
 
     app.template_parser=Template_Parser(
         language=settings.DEFAULT_LANGUAGE,

@@ -1,10 +1,12 @@
 from .LLMEnums import LLMType
 from .providers import OpenAIProvider, CoHereProvider
+from domain.exceptions import UpstreamError
+from helpers.config import Settings
 
 
 class LLMProviderFactory:
     
-    def __init__(self,config:dict):
+    def __init__(self,config:Settings):
         self.config=config
         
     def create_provider(self,provider:str):
@@ -30,6 +32,6 @@ class LLMProviderFactory:
                 default_max_input_chars=self.config.INPUT_DEFAULT_MAX_CHARS,
 )
             
-        
-        return None
+            
+        raise UpstreamError(f"unknown LLM backend: {provider!r}")
         

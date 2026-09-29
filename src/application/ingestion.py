@@ -15,7 +15,7 @@ import aiofiles
 from tqdm.auto import tqdm
 
 from controllers import DataController, ProjectController, NLPController
-from controllers.ProccesController import ProcessController
+from controllers.ProcessController import ProcessController
 from domain.exceptions import ValidationError
 from helpers.config import get_settings
 from models.AssetModel import AssetModel

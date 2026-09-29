@@ -120,7 +120,7 @@ class NLPController(BaseController):
             evidence_panel = {"total_retrieved": 0, "total_selected": 0, "retrieval_coverage": {"documents": [], "unique_documents": 0, "page_range": {}}, "chunks": []}
             return refusal_answer, None, None, [], risk_assessment, confidence, quality, disclaimer, evidence_panel, expanded_query
         
-        retrived_document= await self.search_vector_db_collection(
+        retrieved_documents= await self.search_vector_db_collection(
             project=project,
             text=retrieval_query,
             limit=max(limit, settings.RETRIEVAL_TOP_K),
@@ -132,7 +132,7 @@ class NLPController(BaseController):
             expand_query=expand_query,
         )
         
-        if not retrived_document or len(retrived_document)==0:
+        if not retrieved_documents or len(retrieved_documents)==0:
             confidence=self._build_confidence([], [], question=query)
             quality=self.build_answer_quality("", [], [], verify_claims=False)
             evidence_panel = {"total_retrieved": 0, "total_selected": 0, "retrieval_coverage": {"documents": [], "unique_documents": 0, "page_range": {}}, "chunks": []}
@@ -145,12 +145,12 @@ class NLPController(BaseController):
         
         reserved_chars = FOOTER_RESERVE_CHARS + len(query) + len(conversation_block) + 50
         selected_documents=self._select_documents_for_prompt(
-            retrived_document=retrived_document,
+            retrieved_documents=retrieved_documents,
             max_documents=limit or settings.ANSWER_TOP_K,
             max_context_chars=settings.MAX_CONTEXT_CHARS,
             reserved_chars=reserved_chars,
         )
-        confidence=self._build_confidence(retrived_document, selected_documents, question=query)
+        confidence=self._build_confidence(retrieved_documents, selected_documents, question=query)
 
         if not confidence["generation_allowed"]:
             refusals = (get_safety_config().get("refusals") or {})
@@ -164,10 +164,10 @@ class NLPController(BaseController):
             )
             sources=self._build_sources(selected_documents)
             quality=self.build_answer_quality(refusal, sources, selected_documents, verify_claims=False)
-            evidence_panel = self.build_evidence_panel(retrived_document, selected_documents)
+            evidence_panel = self.build_evidence_panel(retrieved_documents, selected_documents)
             return refusal, None, None, sources, risk_assessment, confidence, quality, disclaimer, evidence_panel, expanded_query
 
-        documnets_prompts="\n".join([
+        document_prompts="\n".join([
                 self._render_document_prompt(idx, doc)
             for idx,doc in enumerate(selected_documents)
         ])
@@ -193,7 +193,7 @@ class NLPController(BaseController):
                     ]
 
         full_prompt = "\n\n".join(filter(None, [
-            documnets_prompts,
+            document_prompts,
             conversation_block,
             f"## User Question:\n{query}",
             footer_prompt,
@@ -234,7 +234,7 @@ class NLPController(BaseController):
                     )
                 ]
                 full_prompt = "\n\n".join(filter(None, [
-                    documnets_prompts,
+                    document_prompts,
                     conversation_block,
                     f"## User Question:\n{query}",
                     correction_footer,
@@ -254,7 +254,7 @@ class NLPController(BaseController):
                     ) + answer
                 quality=self.build_answer_quality(answer, sources, selected_documents, verify_claims=verify_claims)
 
-        evidence_panel = self.build_evidence_panel(retrived_document, selected_documents)
+        evidence_panel = self.build_evidence_panel(retrieved_documents, selected_documents)
         confidence = self._apply_post_generation_confidence(confidence, quality)
         return answer , full_prompt , chat_history, sources, risk_assessment, confidence, quality, disclaimer, evidence_panel, expanded_query
 
@@ -298,7 +298,7 @@ class NLPController(BaseController):
 
         yield self._sse_event("phase", {"phase": "retrieving"})
 
-        retrived_document = await self.search_vector_db_collection(
+        retrieved_documents = await self.search_vector_db_collection(
             project=project, text=retrieval_query,
             limit=max(limit, settings.RETRIEVAL_TOP_K),
             score_threshold=score_threshold if score_threshold is not None else settings.RETRIEVAL_SCORE_THRESHOLD,
@@ -307,7 +307,7 @@ class NLPController(BaseController):
             expand_query=expand_query,
         )
 
-        if not retrived_document or len(retrived_document) == 0:
+        if not retrieved_documents or len(retrieved_documents) == 0:
             confidence = self._build_confidence([], [], question=query)
             quality = self.build_answer_quality("", [], [], verify_claims=False)
             evidence_panel = {"total_retrieved": 0, "total_selected": 0, "retrieval_coverage": {"documents": [], "unique_documents": 0, "page_range": {}}, "chunks": []}
@@ -326,12 +326,12 @@ class NLPController(BaseController):
         system_prompt = self.template_parser.get("rag", "system_prompt")
         reserved_chars = FOOTER_RESERVE_CHARS + len(query) + len(conversation_block) + 50
         selected_documents = self._select_documents_for_prompt(
-            retrived_document=retrived_document,
+            retrieved_documents=retrieved_documents,
             max_documents=limit or settings.ANSWER_TOP_K,
             max_context_chars=settings.MAX_CONTEXT_CHARS,
             reserved_chars=reserved_chars,
         )
-        confidence = self._build_confidence(retrived_document, selected_documents, question=query)
+        confidence = self._build_confidence(retrieved_documents, selected_documents, question=query)
 
         if not confidence["generation_allowed"]:
             refusals = (get_safety_config().get("refusals") or {})
@@ -341,7 +341,7 @@ class NLPController(BaseController):
                 "within the indexed asthma guideline scope.")
             sources = self._build_sources(selected_documents)
             quality = self.build_answer_quality(refusal, sources, selected_documents, verify_claims=False)
-            evidence_panel = self.build_evidence_panel(retrived_document, selected_documents)
+            evidence_panel = self.build_evidence_panel(retrieved_documents, selected_documents)
             yield self._sse_event("done", {
                 "answer": refusal, "sources": sources, "risk_assessment": risk_assessment,
                 "confidence": confidence, "quality": quality, "disclaimer": disclaimer,
@@ -349,7 +349,7 @@ class NLPController(BaseController):
             })
             return
 
-        documnets_prompts = "\n".join([
+        document_prompts = "\n".join([
             self._render_document_prompt(idx, doc)
             for idx, doc in enumerate(selected_documents)
         ])
@@ -373,7 +373,7 @@ class NLPController(BaseController):
             )
         ]
         full_prompt = "\n\n".join(filter(None, [
-            documnets_prompts, conversation_block,
+            document_prompts, conversation_block,
             f"## User Question:\n{query}", footer_prompt,
         ]))
 
@@ -430,7 +430,7 @@ class NLPController(BaseController):
                     )
                 ]
                 full_prompt = "\n\n".join(filter(None, [
-                    documnets_prompts, conversation_block,
+                    document_prompts, conversation_block,
                     f"## User Question:\n{query}", correction_footer,
                 ]))
                 retry_answer = await self.generation_client.generate_text(
@@ -447,7 +447,7 @@ class NLPController(BaseController):
                     ) + answer
                 quality = self.build_answer_quality(answer, sources, selected_documents, verify_claims=verify_claims)
 
-        evidence_panel = self.build_evidence_panel(retrived_document, selected_documents)
+        evidence_panel = self.build_evidence_panel(retrieved_documents, selected_documents)
         yield self._sse_event("done", {
             "answer": answer, "sources": sources, "risk_assessment": risk_assessment,
             "confidence": confidence, "quality": quality, "disclaimer": disclaimer,

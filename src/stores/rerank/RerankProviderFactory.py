@@ -1,10 +1,12 @@
 from .RerankEnums import RerankType
 from .providers import CoHereRerankProvider
+from domain.exceptions import UpstreamError
+from helpers.config import Settings
 
 
 class RerankProviderFactory:
 
-    def __init__(self, config):
+    def __init__(self, config: Settings):
         self.config = config
 
     def create_provider(self, provider: str):
@@ -14,4 +16,4 @@ class RerankProviderFactory:
                 model_id=self.config.RERANK_MODEL_ID,
             )
 
-        return None
+        raise UpstreamError(f"unknown rerank backend: {provider!r}")

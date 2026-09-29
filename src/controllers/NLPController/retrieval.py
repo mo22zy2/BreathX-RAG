@@ -328,14 +328,14 @@ class RetrievalService:
             "chunk_text": self.generation_client.process_text(doc.get("text") or ""),
         })
 
-    def _select_documents_for_prompt(self, retrived_document: list, max_documents: int,
+    def _select_documents_for_prompt(self, retrieved_documents: list, max_documents: int,
                                     max_context_chars: int, reserved_chars: int = 0):
         budget = max_context_chars - reserved_chars
         selected_documents = []
         used_context_chars = 0
         seen_documents = set()
 
-        for doc in retrived_document:
+        for doc in retrieved_documents:
             metadata = doc.get("metadata") or {}
             dedupe_key = (metadata.get("asset_id"), metadata.get("chunk_order"), doc.get("text"))
             if dedupe_key in seen_documents:
