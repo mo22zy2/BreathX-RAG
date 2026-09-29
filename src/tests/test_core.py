@@ -18,13 +18,6 @@ SRC_DIR = Path(__file__).resolve().parent.parent
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-# Bypass controllers/__init__.py which pulls in DataController -> fastapi
-# by pre-populating the controllers package as a namespace module.
-import types
-if "controllers" not in sys.modules:
-    sys.modules["controllers"] = types.ModuleType("controllers")
-    sys.modules["controllers"].__path__ = [str(SRC_DIR / "controllers")]
-
 
 # ---------------------------------------------------------------------------
 # Helpers — create a minimal NLPController without a live DB / LLM
