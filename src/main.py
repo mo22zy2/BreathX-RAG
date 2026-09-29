@@ -2,7 +2,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, FileResponse
-from routes import base, data ,nlp
+from fastapi.staticfiles import StaticFiles
+from routes import base, data ,nlp, login
 from helpers.config import get_settings
 from stores.llm.LLMProviderFactory import LLMProviderFactory
 from stores.vectordb.VectorDBProviderFactory import VectorDBProviderFactory
@@ -68,7 +69,18 @@ async def lifespan(app: FastAPI):
     await app.vectordb_client.disconnect()
 
 
-app = FastAPI(lifespan=lifespan)
+settings = get_settings()
+
+is_production = settings.ENVIRONMENT.lower() == "prod"
+
+app = FastAPI(
+    title=settings.APP_NAME,
+    version=settings.APP_VERSION,
+    lifespan=lifespan,
+    docs_url=None if is_production else "/docs",
+    redoc_url=None if is_production else "/redoc",
+    openapi_url=None if is_production else "/openapi.json",
+)
 
 setup_metrics(app)
 
@@ -86,6 +98,9 @@ app.add_middleware(
 app.include_router(base.base_router)
 app.include_router(data.data_router)
 app.include_router(nlp.nlp_router)
+app.include_router(login.router)
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/", response_class=HTMLResponse)

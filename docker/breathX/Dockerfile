@@ -29,7 +29,12 @@ COPY docker/breathX/alembic.ini /app/models/db_schemas/breathx_rag/alembic.ini
 
 COPY docker/breathX/entrypoint.sh /entrypoint.sh
 
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /entrypoint.sh \
+    && useradd -m -u 10000 appuser \
+    && mkdir -p /app/assets \
+    && chown -R appuser:appuser /app /entrypoint.sh
+
+USER appuser
 
 ENTRYPOINT [ "/entrypoint.sh" ]
 

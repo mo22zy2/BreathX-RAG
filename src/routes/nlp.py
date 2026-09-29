@@ -1,10 +1,11 @@
-from fastapi import APIRouter, FastAPI, UploadFile, status, Request
+from fastapi import APIRouter, FastAPI, UploadFile, status, Request, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
 from routes.schemes.nlp import PushRequest, SearchRequest
 from models.ProjectModel import ProjectModel
 from models.ChunkModel import ChunkModel
 from controllers.NLPController import NLPController
 from tqdm.auto import tqdm
+from auth.jwt import get_current_user
 
 from models import Response
 import logging
@@ -18,7 +19,7 @@ nlp_router = APIRouter(
 
 
 @nlp_router.post('/index/push/{project_id}')
-async def index_project(request: Request, project_id: int, push_request: PushRequest):
+async def index_project(request: Request, project_id: int, push_request: PushRequest, current_user: str = Depends(get_current_user)):
 
     project_model = await ProjectModel.create_instance(
         db_client=request.app.db_client
@@ -126,7 +127,7 @@ async def index_project(request: Request, project_id: int, push_request: PushReq
 
 
 @nlp_router.get('/index/info/{project_id}')
-async def get_project_index_info(request: Request, project_id: int):
+async def get_project_index_info(request: Request, project_id: int, current_user: str = Depends(get_current_user)):
 
     project_model = await ProjectModel.create_instance(
         db_client=request.app.db_client
