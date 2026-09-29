@@ -1,10 +1,11 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from routes import base, data ,nlp, login
 from helpers.config import get_settings
+from domain.exceptions import BreathXError
 from stores.llm.LLMProviderFactory import LLMProviderFactory
 from stores.vectordb.VectorDBProviderFactory import VectorDBProviderFactory
 from stores.rerank.RerankProviderFactory import RerankProviderFactory
@@ -83,6 +84,22 @@ app = FastAPI(
 )
 
 setup_metrics(app)
+
+
+@app.exception_handler(BreathXError)
+async def breathx_error_handler(request, exc: BreathXError):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"signal": exc.signal},
+    )
+
+
+@app.exception_handler(BreathXError)
+async def breathx_error_handler(request, exc: BreathXError):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"signal": exc.signal},
+    )
 
 
 app.add_middleware(
