@@ -11,7 +11,7 @@ services:
     container_name: fastapi
 
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
 
     volumes:
       - fastapi_data:/app/assets
@@ -27,6 +27,13 @@ services:
 
     env_file:
       - ./env/.env.app
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
 
 
   # =========================
@@ -60,7 +67,7 @@ services:
     container_name: pgvector
 
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
 
     volumes:
       - pgvector:/var/lib/postgresql/data
@@ -90,8 +97,8 @@ services:
     container_name: qdrant
 
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
 
     volumes:
       - qdrant_data:/qdrant/storage
@@ -111,7 +118,7 @@ services:
     container_name: prometheus
 
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
 
     volumes:
       - prometheus_data:/prometheus
@@ -134,12 +141,12 @@ services:
   # Grafana
   # =========================
   grafana:
-    image: grafana/grafana:10.0.1
+    image: grafana/grafana:11.6.16
 
     container_name: grafana
 
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
 
     volumes:
       - grafana_data:/var/lib/grafana
@@ -157,12 +164,12 @@ services:
   # Node Exporter
   # =========================
   node_exporter:
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:v1.12.1
 
     container_name: node-exporter
 
     ports:
-      - "9100:9100"
+      - "127.0.0.1:9100:9100"
   
 
     volumes:
@@ -193,7 +200,7 @@ services:
     container_name: postgres_exporter
 
     ports:
-      - "9187:9187"
+      - "127.0.0.1:9187:9187"
 
     env_file:
       - ./env/.env.postgres.exporter
@@ -203,6 +210,74 @@ services:
 
     restart: always
 
+  # =========================
+  # RabbitMQ
+  # =========================
+
+  rabbitmq:
+    image: rabbitmq:4.1.2-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"       # AMQP
+      - "15672:15672"     # Management UI
+
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+
+    env_file:
+      - ./env/.env.rabbitmq
+
+    networks:
+      - backend
+
+    restart: always
+
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # =========================
+  # Redis
+  # =========================
+
+  redis:
+    image: redis:8.0.3-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+    volumes:
+      - redis_data:/data
+
+    env_file:
+      - ./env/.env.redis
+
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 512mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --protected-mode
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD}
+
+    networks:
+      - backend
+
+    restart: always
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
 
 # =========================
 # Network
@@ -220,3 +295,5 @@ volumes:
   qdrant_data:
   prometheus_data:
   grafana_data:
+  rabbitmq_data:
+  redis_data:

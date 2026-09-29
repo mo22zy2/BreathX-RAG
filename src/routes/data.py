@@ -1,6 +1,7 @@
 from fastapi import APIRouter,FastAPI,Depends,UploadFile,status,Request,Form
 from fastapi.responses import JSONResponse
 from helpers.config import get_settings,Settings
+from auth.jwt import get_current_user
 from controllers import DataController,ProjectController,ProcessController
 from models.ProjectModel import ProjectModel
 from models.ChunkModel import ChunkModel
@@ -33,7 +34,7 @@ async def upload_data(
     document_name: Optional[str] = Form(None),
     source_url: Optional[str] = Form(None),
     org: Optional[str] = Form(None),
-    app_settings:Settings =Depends(get_settings)):
+    app_settings:Settings =Depends(get_settings), current_user: str = Depends(get_current_user)):
     
     project_model=await ProjectModel.create_instance(
         db_client=request.app.db_client
@@ -114,7 +115,7 @@ async def upload_data(
     
 @data_router.post("/process/{project_id}")
 
-async def process_endpoint(request:Request,project_id:int,process_request:ProccessRequest):
+async def process_endpoint(request:Request,project_id:int,process_request:ProccessRequest, current_user: str = Depends(get_current_user)):
     
     chunk_size=process_request.chunk_size
     overlap_size=process_request.overlap_size
