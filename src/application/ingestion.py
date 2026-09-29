@@ -9,18 +9,17 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from typing import Optional
 
 import aiofiles
 from tqdm.auto import tqdm
 
-from controllers import DataController, ProjectController, NLPController
+from controllers import DataController, NLPController, ProjectController
 from controllers.ProcessController import ProcessController
 from domain.exceptions import ValidationError
 from helpers.config import get_settings
+from models import Response
 from models.AssetModel import AssetModel
 from models.ChunkModel import ChunkModel
-from models import Response
 from models.db_schemas import Asset, DataChunk
 from models.enums.AssetTypeEnum import AssetTypeEnum
 
@@ -30,14 +29,14 @@ logger = logging.getLogger("uvicorn.error")
 @dataclass
 class ProcessOptions:
     """Service-layer copy of the process request (decoupled from the API schema)."""
-    file_id: Optional[str] = None
-    chunk_size: Optional[int] = None
-    overlap_size: Optional[int] = None
-    do_reset: Optional[int] = 0
-    chunking_method: Optional[str] = None
-    document_name: Optional[str] = None
-    source_url: Optional[str] = None
-    org: Optional[str] = None
+    file_id: str | None = None
+    chunk_size: int | None = None
+    overlap_size: int | None = None
+    do_reset: int | None = 0
+    chunking_method: str | None = None
+    document_name: str | None = None
+    source_url: str | None = None
+    org: str | None = None
 
 
 class UploadService:

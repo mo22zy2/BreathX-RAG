@@ -5,9 +5,6 @@ Run from src/:
     pytest tests/test_core.py -v
 """
 import sys
-import os
-import json
-import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -408,6 +405,7 @@ class TestCoHereEmbedInputType:
 
     def test_query_document_type_uses_search_query(self):
         import asyncio
+
         from stores.llm.LLMEnums import DocumentType
 
         provider, captured = self._provider_with_fake_client()
@@ -416,6 +414,7 @@ class TestCoHereEmbedInputType:
 
     def test_document_document_type_uses_search_document(self):
         import asyncio
+
         from stores.llm.LLMEnums import DocumentType
 
         provider, captured = self._provider_with_fake_client()
@@ -446,3 +445,4 @@ class TestPGVectorIdentifierValidation:
         from stores.vectordb.providers.PGVectorProvider import PGVectorProvider
         with pytest.raises(ValueError):
             PGVectorProvider._validate_collection_name("1_collection")
+

@@ -6,7 +6,7 @@ NLPController so orchestration, scoring, and verification stay separate.
 """
 import re
 
-from helpers.safety_config import get_safety_config, compile_rule_pattern, config_signature
+from helpers.safety_config import compile_rule_pattern, config_signature, get_safety_config
 from models.enums.SafetyEnums import RiskLevel, SafetyReason
 
 

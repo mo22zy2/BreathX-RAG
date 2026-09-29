@@ -6,7 +6,6 @@ invariants (project id, limit bounds) so routes and repositories never see
 illegal values — this is where the `info/-1` and `limit=-5` 500s die.
 """
 from dataclasses import dataclass, field
-from typing import Optional
 
 from domain.confidence import ConfidenceScorer
 from domain.exceptions import ValidationError
@@ -35,15 +34,15 @@ class AnswerRequest:
     project_id: int
     query: str
     limit: int = 5
-    score_threshold: Optional[float] = None
-    metadata_filter: Optional[dict] = None
+    score_threshold: float | None = None
+    metadata_filter: dict | None = None
     include_sources: bool = True
     retrieval_mode: str = "hybrid"
-    rerank: Optional[bool] = None
-    rerank_top_k: Optional[int] = None
-    expand_query: Optional[bool] = None
+    rerank: bool | None = None
+    rerank_top_k: int | None = None
+    expand_query: bool | None = None
     verify_claims: bool = True
-    conversation_history: Optional[list] = field(default=None)
+    conversation_history: list | None = field(default=None)
 
     def __post_init__(self):
         if self.project_id is None or int(self.project_id) < 1:
@@ -55,9 +54,9 @@ class AnswerRequest:
 
 @dataclass
 class AnswerResult:
-    answer: Optional[str]
-    full_prompt: Optional[str]
-    chat_history: Optional[list]
+    answer: str | None
+    full_prompt: str | None
+    chat_history: list | None
     sources: list
     risk_assessment: dict
     confidence: dict

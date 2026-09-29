@@ -1,13 +1,11 @@
-from typing import Dict, Optional
+import uuid
 
 from pydantic import BaseModel
-from sqlalchemy import Index
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String, func
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 
 from .breathx_rag_base import SQLAlchemyBase
-from sqlalchemy import ForeignKey, String, Column,Integer,DateTime, func, Boolean
-from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import relationship
-import uuid
 
 
 class DataChunk(SQLAlchemyBase):
@@ -40,5 +38,6 @@ class DataChunk(SQLAlchemyBase):
 class RetrivedDocument(BaseModel):
     text: str
     score: float
-    chunk_id: Optional[int] = None
-    metadata: Optional[Dict] = None
+    chunk_id: int | None = None
+    metadata: dict | None = None
+

@@ -15,10 +15,10 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from domain.exceptions import ValidationError
-from models.BaseDataModel import ensure_valid_project_id
-from models.ProjectModel import ProjectModel
-from models.ChunkModel import ChunkModel
 from models.AssetModel import AssetModel
+from models.BaseDataModel import ensure_valid_project_id
+from models.ChunkModel import ChunkModel
+from models.ProjectModel import ProjectModel
 
 
 class TestEnsureValidProjectId:

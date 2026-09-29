@@ -1,19 +1,15 @@
-from typing import List
-import re, asyncio
-
-from models.db_schemas import DataChunk
-from stores.llm.LLMEnums import DocumentType
-from helpers.config import get_settings
-from helpers.safety_config import get_safety_config
+import json
 
 from controllers.BaseController import BaseController
-from domain.safety import SafetyClassifier
-from domain.quality import AnswerQualityEvaluator
+from controllers.NLPController.retrieval import RetrievalService
 from domain.confidence import ConfidenceScorer
 from domain.contracts import AnswerRequest, AnswerResult
-from controllers.NLPController.retrieval import RetrievalService
+from domain.quality import AnswerQualityEvaluator
+from domain.safety import SafetyClassifier
+from helpers.config import get_settings
+from helpers.safety_config import get_safety_config
 from models.db_schemas import Project
-import json
+
 FOOTER_RESERVE_CHARS = 900 
 class NLPController(BaseController):
     

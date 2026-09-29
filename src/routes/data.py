@@ -1,13 +1,14 @@
-from fastapi import APIRouter,Depends,UploadFile,status,Request,Form
-from fastapi.responses import JSONResponse
-from helpers.config import get_settings,Settings
-from auth.jwt import get_current_user
-from models.ProjectModel import ProjectModel
-from models import Response
-from .schemes.data import ProcessRequest
-from application.ingestion import UploadService, ProcessService, ProcessOptions
 
-from typing import Optional
+from fastapi import APIRouter, Depends, Form, Request, UploadFile, status
+from fastapi.responses import JSONResponse
+
+from application.ingestion import ProcessOptions, ProcessService, UploadService
+from auth.jwt import get_current_user
+from helpers.config import Settings, get_settings
+from models import Response
+from models.ProjectModel import ProjectModel
+
+from .schemes.data import ProcessRequest
 
 data_router = APIRouter(
     prefix="/api/v1/data",
@@ -20,9 +21,9 @@ async def upload_data(
     request:Request,
     project_id:int,
     file:UploadFile,
-    document_name: Optional[str] = Form(None),
-    source_url: Optional[str] = Form(None),
-    org: Optional[str] = Form(None),
+    document_name: str | None = Form(None),
+    source_url: str | None = Form(None),
+    org: str | None = Form(None),
     app_settings:Settings =Depends(get_settings), current_user: str = Depends(get_current_user)):
     
     project = await ProjectModel(db_client=request.app.db_client).get_project_or_create_one(project_id=project_id)

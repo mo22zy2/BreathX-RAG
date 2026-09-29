@@ -10,7 +10,7 @@ import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -18,7 +18,7 @@ SRC_DIR = Path(__file__).resolve().parent.parent
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from application.ingestion import UploadService, ProcessService, IndexingService
+from application.ingestion import IndexingService, ProcessService, UploadService
 from domain.contracts import AnswerResult
 from domain.exceptions import ValidationError
 from models import Response

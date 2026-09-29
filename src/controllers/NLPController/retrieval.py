@@ -7,11 +7,10 @@ lifecycle. Pure orchestration (answer/stream) stays on NLPController.
 import asyncio
 import json
 import re
-from typing import List
 
 from helpers.config import get_settings
 from models.db_schemas import DataChunk, Project
-
+from stores.llm.LLMEnums import DocumentType
 
 DOC_HEADER_OVERHEAD_CHARS = 220
 
@@ -76,8 +75,8 @@ class RetrievalService:
         )
 
     async def index_into_vector_db(self,project:Project,
-                             chunks:List[DataChunk],
-                             chunk_ids:List[int],
+                             chunks:list[DataChunk],
+                             chunk_ids:list[int],
                              do_reset:bool=False
                              ):
         collection_name=self.create_collection_name(project_id=project.project_id)

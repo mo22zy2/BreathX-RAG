@@ -5,8 +5,8 @@ official-evidence coverage + dosing guardrail). `apply_post_generation`
 folds citation/claim verification into a display copy without touching the
 gate. Extracted from NLPController.
 """
-from helpers.config import get_settings
 from domain import text as text_utils
+from helpers.config import get_settings
 
 
 class ConfidenceScorer:

@@ -1,9 +1,10 @@
-from typing import List
+import logging
+
+import cohere
+
+from models.db_schemas import RetrivedDocument
 
 from ..RerankProviderInterface import RerankProviderInterface
-from models.db_schemas import RetrivedDocument
-import cohere
-import logging
 
 
 class CoHereRerankProvider(RerankProviderInterface):
@@ -15,7 +16,7 @@ class CoHereRerankProvider(RerankProviderInterface):
         # AsyncClient so a rerank call doesn't block the event loop.
         self.client = cohere.AsyncClient(self.api_key, timeout=240) if api_key else None
 
-    async def rerank(self, query: str, documents: List[RetrivedDocument], top_n: int = None) -> List[RetrivedDocument]:
+    async def rerank(self, query: str, documents: list[RetrivedDocument], top_n: int = None) -> list[RetrivedDocument]:
         if not self.client:
             self.logger.error("Cohere rerank client is not initialized.")
             return documents

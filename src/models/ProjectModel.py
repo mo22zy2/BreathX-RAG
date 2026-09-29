@@ -1,7 +1,8 @@
-from .BaseDataModel import BaseDataModel, ensure_valid_project_id
-from .db_schemas import Project
 from sqlalchemy import func, select
 from sqlalchemy.orm import sessionmaker
+
+from .BaseDataModel import BaseDataModel, ensure_valid_project_id
+from .db_schemas import Project
 
 
 class ProjectModel(BaseDataModel):

@@ -1,9 +1,13 @@
-from .providers import QdrantDBProvider,PGVectorProvider
-from .VectorDBEnums import VectorDBEnums
+from sqlalchemy.orm import sessionmaker
+
 from controllers.BaseController import BaseController
 from domain.exceptions import UpstreamError
 from helpers.config import Settings
-from sqlalchemy.orm import sessionmaker
+
+from .providers import PGVectorProvider, QdrantDBProvider
+from .VectorDBEnums import VectorDBEnums
+
+
 class VectorDBProviderFactory:
     
     def __init__(self,config:Settings,db_client:sessionmaker=None):

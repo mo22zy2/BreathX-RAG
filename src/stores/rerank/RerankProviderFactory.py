@@ -1,7 +1,8 @@
-from .RerankEnums import RerankType
-from .providers import CoHereRerankProvider
 from domain.exceptions import UpstreamError
 from helpers.config import Settings
+
+from .providers import CoHereRerankProvider
+from .RerankEnums import RerankType
 
 
 class RerankProviderFactory:

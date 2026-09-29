@@ -1,8 +1,9 @@
-from ..LLMInterface import LLMInterface
-from ..LLMEnums import CoHereEnums, DocumentType
-from typing import Union,List
-import cohere
 import logging
+
+import cohere
+
+from ..LLMEnums import CoHereEnums, DocumentType
+from ..LLMInterface import LLMInterface
 
 
 class CoHereProvider(LLMInterface):
@@ -113,7 +114,7 @@ class CoHereProvider(LLMInterface):
             return
 
 
-    async def embed_text(self, text: Union[str , List[str]], document_type: str = None):
+    async def embed_text(self, text: str | list[str], document_type: str = None):
         if not self.client:
             self.logger.error("Cohere client is not initialized.")
             return None

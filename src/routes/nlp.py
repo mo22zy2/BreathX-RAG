@@ -1,14 +1,15 @@
-from fastapi import APIRouter, FastAPI, UploadFile, status, Request, Depends
-from fastapi.responses import JSONResponse, StreamingResponse
-from routes.schemes.nlp import PushRequest, SearchRequest
-from models.ProjectModel import ProjectModel
-from controllers.NLPController import NLPController
-from application.ingestion import IndexingService
-from domain.contracts import AnswerRequest, clamp_limit
-from auth.jwt import get_current_user
-
-from models import Response
 import logging
+
+from fastapi import APIRouter, Depends, Request, status
+from fastapi.responses import JSONResponse, StreamingResponse
+
+from application.ingestion import IndexingService
+from auth.jwt import get_current_user
+from controllers.NLPController import NLPController
+from domain.contracts import AnswerRequest, clamp_limit
+from models import Response
+from models.ProjectModel import ProjectModel
+from routes.schemes.nlp import PushRequest, SearchRequest
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -204,3 +205,4 @@ async def answer_index_info_stream(request: Request, project_id: int, search_req
             "X-Accel-Buffering": "no",
         }
     )
+

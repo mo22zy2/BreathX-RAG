@@ -1,7 +1,8 @@
-from .LLMEnums import LLMType
-from .providers import OpenAIProvider, CoHereProvider
 from domain.exceptions import UpstreamError
 from helpers.config import Settings
+
+from .LLMEnums import LLMType
+from .providers import CoHereProvider, OpenAIProvider
 
 
 class LLMProviderFactory:

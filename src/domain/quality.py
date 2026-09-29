@@ -6,8 +6,8 @@ delegates so routes, the answer pipeline, and existing tests are untouched.
 """
 import re
 
-from helpers.safety_config import get_safety_config
 from domain import text as text_utils
+from helpers.safety_config import get_safety_config
 
 
 class AnswerQualityEvaluator:

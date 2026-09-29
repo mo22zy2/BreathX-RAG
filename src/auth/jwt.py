@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta, timezone
-from helpers.config import get_settings
-from jose import JWTError, jwt
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 
+from helpers.config import get_settings
 
 ALGORITHM = "HS256"
 

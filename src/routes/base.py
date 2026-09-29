@@ -1,7 +1,9 @@
-from fastapi import APIRouter,FastAPI,Depends
-from helpers.config import get_settings,Settings
-from auth.jwt import get_current_user
 from datetime import datetime
+
+from fastapi import APIRouter, Depends
+
+from auth.jwt import get_current_user
+from helpers.config import Settings, get_settings
 
 base_router = APIRouter(
     prefix="/api/v1",

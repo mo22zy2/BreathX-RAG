@@ -1,21 +1,22 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
+
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from routes import base, data ,nlp, login
-from helpers.config import get_settings
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+
 from domain.exceptions import BreathXError
+from helpers.config import get_settings
 from models.db_schemas.startup_checks import ensure_chunks_indexed_column
+from routes import base, data, login, nlp
 from stores.llm.LLMProviderFactory import LLMProviderFactory
-from stores.vectordb.VectorDBProviderFactory import VectorDBProviderFactory
 from stores.rerank.RerankProviderFactory import RerankProviderFactory
 from stores.templates.template_parser import Template_Parser
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.ext.asyncio import create_async_engine,AsyncSession
-from sqlalchemy.orm import sessionmaker
+from stores.vectordb.VectorDBProviderFactory import VectorDBProviderFactory
 from utils.metrices import setup_metrics
-
 
 STATIC_DIR = Path(__file__).parent / "static"
 

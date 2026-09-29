@@ -1,8 +1,9 @@
-from sqlalchemy import func, select ,delete, text, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.orm import sessionmaker
 
 from .BaseDataModel import BaseDataModel, ensure_valid_project_id
 from .db_schemas import DataChunk
+
 
 class ChunkModel(BaseDataModel):
     
@@ -73,7 +74,7 @@ class ChunkModel(BaseDataModel):
             query = (
                 select(DataChunk)
                 .where(DataChunk.chunk_project_id == project_id)
-                .where(DataChunk.chunk_indexed == False)
+                .where(DataChunk.chunk_indexed.is_(False))
                 .order_by(DataChunk.chunk_id)
                 .offset((page_no - 1) * page_size)
                 .limit(page_size)
@@ -87,7 +88,7 @@ class ChunkModel(BaseDataModel):
             count_sql = (
                 select(func.count())
                 .where(DataChunk.chunk_project_id == project_id)
-                .where(DataChunk.chunk_indexed == False)
+                .where(DataChunk.chunk_indexed.is_(False))
             )
             result = await session.execute(count_sql)
             return result.scalar()

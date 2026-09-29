@@ -1,8 +1,10 @@
-from ..LLMInterface import LLMInterface
-from ..LLMEnums import OpenAIEnums
-from openai import AsyncOpenAI
-from typing import Union, List
 import logging
+
+from openai import AsyncOpenAI
+
+from ..LLMEnums import OpenAIEnums
+from ..LLMInterface import LLMInterface
+
 
 class OpenAIProvider(LLMInterface):
 
@@ -119,7 +121,7 @@ class OpenAIProvider(LLMInterface):
             self.logger.error(f"OpenAI generate_text_stream failed: {e}")
             return
 
-    async def embed_text(self, text:Union[str,List[str]], document_type:str=None):
+    async def embed_text(self, text:str | list[str], document_type:str=None):
 
         if not self.client:
 
