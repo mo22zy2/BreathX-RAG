@@ -395,7 +395,7 @@ Full annotated template: [`src/.env.example`](src/.env.example). Retrieval-criti
 - `do_reset=1` on process/index wipes that project's vector collection and chunks (the collection cache is invalidated correctly).
 - CORS allows any `localhost` port (regex-based). Frontend served from any port works.
 - Editing `src/.env` requires a manual server restart (code changes auto-reload); editing `safety_config.json` does **not** — rules, patterns, refusal texts, and citation aliases hot-reload by file mtime.
-- Intentional naming kept for API compatibility: `ProccesController`, `ProccessRequest`, `chunk_size`.
+- Naming fixed to `ProcessController`/`ProcessRequest` (JSON API unchanged); `chunk_size` kept for DB/API compatibility.
 - Startup runs an idempotent schema guard (`chunks.chunk_indexed`); Alembic remains the authoritative migration path.
 
 ## License

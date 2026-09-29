@@ -1,4 +1,6 @@
 from .DataController import DataController
-from .ProjectController import ProjectController
-from .ProccesController import ProcessController
 from .NLPController import NLPController
+from .ProcessController import ProcessController
+from .ProjectController import ProjectController
+
+__all__ = ["DataController", "ProjectController", "ProcessController", "NLPController"]

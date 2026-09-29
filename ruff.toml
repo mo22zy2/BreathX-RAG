@@ -1,0 +1,21 @@
+target-version = "py310"
+line-length = 120
+
+[lint]
+select = [
+  "E",   # pycodestyle errors
+  "F",   # pyflakes (unused imports/variables)
+  "I",   # isort
+  "UP",  # pyupgrade
+]
+ignore = [
+  "E501",  # line length handled by formatter discipline, not CI failures
+  "E741",  # ambiguous variable names (l, O, I) — pre-existing style
+]
+
+[lint.isort]
+known-first-party = ["controllers", "models", "routes", "helpers", "auth", "stores", "domain", "application"]
+
+[lint.per-file-ignores]
+"src/tests/*.py" = ["E402"]  # sys.path bootstrap precedes imports by design
+"src/models/db_schemas/breathx_rag/alembic/**/*.py" = ["F401"]  # migration history: do not touch

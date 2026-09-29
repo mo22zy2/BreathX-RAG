@@ -1,19 +1,22 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
+
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from routes import base, data ,nlp, login
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+
+from domain.exceptions import BreathXError
 from helpers.config import get_settings
+from models.db_schemas.startup_checks import ensure_chunks_indexed_column
+from routes import base, data, login, nlp
 from stores.llm.LLMProviderFactory import LLMProviderFactory
-from stores.vectordb.VectorDBProviderFactory import VectorDBProviderFactory
 from stores.rerank.RerankProviderFactory import RerankProviderFactory
 from stores.templates.template_parser import Template_Parser
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.ext.asyncio import create_async_engine,AsyncSession
-from sqlalchemy.orm import sessionmaker
+from stores.vectordb.VectorDBProviderFactory import VectorDBProviderFactory
 from utils.metrices import setup_metrics
-
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -52,11 +55,7 @@ async def lifespan(app: FastAPI):
 
     await app.vectordb_client.connect()
 
-    async with app.db_engine.connect() as conn:
-        await conn.execute(__import__('sqlalchemy').text(
-            "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS chunk_indexed BOOLEAN NOT NULL DEFAULT FALSE"
-        ))
-        await conn.commit()
+    await ensure_chunks_indexed_column(app.db_engine)
 
     app.template_parser=Template_Parser(
         language=settings.DEFAULT_LANGUAGE,
@@ -83,6 +82,16 @@ app = FastAPI(
 )
 
 setup_metrics(app)
+
+
+@app.exception_handler(BreathXError)
+async def breathx_error_handler(request, exc: BreathXError):
+    content = {"signal": exc.signal}
+    content.update(exc.extra)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=content,
+    )
 
 
 app.add_middleware(

@@ -1,16 +1,19 @@
-from typing import List, Optional
-from dataclasses import dataclass, field
-from collections import Counter
+import math
 import os
 import re
-import math
+from collections import Counter
+from dataclasses import dataclass, field
+
+from langchain_community.document_loaders import (
+    PyMuPDFLoader,  # type: ignore
+    TextLoader,  # type: ignore
+)
+from langchain_text_splitters import RecursiveCharacterTextSplitter  # type: ignore
+
+from models import ProcessingEnum
 
 from .BaseController import BaseController
 from .ProjectController import ProjectController
-from langchain_community.document_loaders import TextLoader  # type: ignore
-from langchain_community.document_loaders import PyMuPDFLoader  # type: ignore
-from langchain_text_splitters import RecursiveCharacterTextSplitter  # type: ignore
-from models import ProcessingEnum
 
 
 @dataclass
@@ -194,7 +197,7 @@ class ProcessController(BaseController):
         return cleaned
 
     @staticmethod
-    def _compile_patterns(patterns) -> List[re.Pattern]:
+    def _compile_patterns(patterns) -> list[re.Pattern]:
         compiled = []
         for pattern in patterns or []:
             try:
@@ -205,8 +208,8 @@ class ProcessController(BaseController):
 
     def process_simpler_splitter(
         self,
-        texts: List[str],
-        metadatas: List[dict],
+        texts: list[str],
+        metadatas: list[dict],
         chunk_size: int,
         chunk_overlap: int = 0,
         splitter_tag: str = "\n",
@@ -250,8 +253,8 @@ class ProcessController(BaseController):
 
     def process_section_splitter(
         self,
-        texts: List[str],
-        metadatas: List[dict],
+        texts: list[str],
+        metadatas: list[dict],
         min_tokens: int = 400,
         max_tokens: int = 800,
         chunk_overlap: int = 0,
@@ -410,7 +413,7 @@ class ProcessController(BaseController):
         return merged
 
     @staticmethod
-    def _detect_heading(line: str, compiled_patterns) -> Optional[str]:
+    def _detect_heading(line: str, compiled_patterns) -> str | None:
         """Return a cleaned section title if `line` looks like a heading, else None."""
         s = line.strip()
         if not s or len(s) < 4 or len(s) > 120:
@@ -458,7 +461,7 @@ class ProcessController(BaseController):
     # -------------------- semantic chunking --------------------
 
     @staticmethod
-    def _split_sentences(text: str) -> List[str]:
+    def _split_sentences(text: str) -> list[str]:
         """Lightweight sentence splitter (no extra NLP dependency)."""
         # split on sentence-ending punctuation followed by whitespace + capital/quote,
         # while keeping the punctuation attached to the sentence.
@@ -466,7 +469,7 @@ class ProcessController(BaseController):
         return [s.strip() for s in raw if len(s.strip()) > 0]
 
     @staticmethod
-    def _cosine_similarity(a: List[float], b: List[float]) -> float:
+    def _cosine_similarity(a: list[float], b: list[float]) -> float:
         dot = sum(x * y for x, y in zip(a, b))
         norm_a = math.sqrt(sum(x * x for x in a))
         norm_b = math.sqrt(sum(y * y for y in b))
@@ -476,8 +479,8 @@ class ProcessController(BaseController):
 
     def process_semantic_splitter(
         self,
-        texts: List[str],
-        metadatas: List[dict],
+        texts: list[str],
+        metadatas: list[dict],
         embeddings,
         breakpoint_percentile: float = 95.0,
         min_chunk_size: int = 100,

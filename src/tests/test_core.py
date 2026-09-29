@@ -5,9 +5,6 @@ Run from src/:
     pytest tests/test_core.py -v
 """
 import sys
-import os
-import json
-import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -18,17 +15,22 @@ SRC_DIR = Path(__file__).resolve().parent.parent
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-# Bypass controllers/__init__.py which pulls in DataController -> fastapi
-# by pre-populating the controllers package as a namespace module.
-import types
-if "controllers" not in sys.modules:
-    sys.modules["controllers"] = types.ModuleType("controllers")
-    sys.modules["controllers"].__path__ = [str(SRC_DIR / "controllers")]
-
 
 # ---------------------------------------------------------------------------
 # Helpers — create a minimal NLPController without a live DB / LLM
 # ---------------------------------------------------------------------------
+
+def _controller_module():
+    """The real NLPController *subpackage* module object (importlib is
+    shadowing-proof: `controllers/__init__` re-exports the NLPController
+    *class* under the same name, so dotted patch() targets resolve to the
+    class and have no `get_settings` attribute).
+
+    The controller delegate reads settings lazily from this namespace, so
+    patching here flows through exactly like the old module attribute did."""
+    import importlib
+    return importlib.import_module("controllers.NLPController")
+
 
 def _make_controller():
     from controllers.NLPController import NLPController
@@ -163,7 +165,7 @@ class TestConfidenceGate:
 
     def test_medium_confidence(self):
         retrieved = [self._doc(0.40) for _ in range(3)]
-        with patch("controllers.NLPController.get_settings") as mock_settings:
+        with patch.object(_controller_module(), "get_settings") as mock_settings:
             mock_settings.return_value.ANSWER_MIN_TOP_SCORE = 0.0
             mock_settings.return_value.ANSWER_MIN_EVIDENCE_COUNT = 1
             c = self.ctrl._build_confidence(retrieved, retrieved)
@@ -172,7 +174,7 @@ class TestConfidenceGate:
 
     def test_low_confidence(self):
         retrieved = [self._doc(0.15) for _ in range(3)]
-        with patch("controllers.NLPController.get_settings") as mock_settings:
+        with patch.object(_controller_module(), "get_settings") as mock_settings:
             mock_settings.return_value.ANSWER_MIN_TOP_SCORE = 0.0
             mock_settings.return_value.ANSWER_MIN_EVIDENCE_COUNT = 1
             c = self.ctrl._build_confidence(retrieved, retrieved)
@@ -403,6 +405,7 @@ class TestCoHereEmbedInputType:
 
     def test_query_document_type_uses_search_query(self):
         import asyncio
+
         from stores.llm.LLMEnums import DocumentType
 
         provider, captured = self._provider_with_fake_client()
@@ -411,6 +414,7 @@ class TestCoHereEmbedInputType:
 
     def test_document_document_type_uses_search_document(self):
         import asyncio
+
         from stores.llm.LLMEnums import DocumentType
 
         provider, captured = self._provider_with_fake_client()
@@ -441,3 +445,4 @@ class TestPGVectorIdentifierValidation:
         from stores.vectordb.providers.PGVectorProvider import PGVectorProvider
         with pytest.raises(ValueError):
             PGVectorProvider._validate_collection_name("1_collection")
+

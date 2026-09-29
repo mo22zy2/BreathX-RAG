@@ -1,20 +1,15 @@
-from sqlalchemy import func, select ,delete, text, update
+from sqlalchemy import delete, func, select, text, update
+from sqlalchemy.orm import sessionmaker
 
-from .BaseDataModel import BaseDataModel
+from .BaseDataModel import BaseDataModel, ensure_valid_project_id
 from .db_schemas import DataChunk
+
 
 class ChunkModel(BaseDataModel):
     
-    def __init__(self, db_client: object):
+    def __init__(self, db_client: sessionmaker):
         super().__init__(db_client=db_client)
-        self.db_client=db_client
 
-    # Now i was facing a problem that the init in Python should not be async, so I created a class method to create an instance of the class and initialize the collection asynchronously.
-    @classmethod
-    async def create_instance(cls, db_client: object):
-        instance = cls(db_client)
-        return instance
-        
     async def create_chunk(self, chunk: DataChunk):
         async with self.db_client() as session:
             async with session.begin():
@@ -42,6 +37,7 @@ class ChunkModel(BaseDataModel):
         return len(chunks)
     
     async def delete_chunk_by_project_id(self,project_id:int):
+        project_id = ensure_valid_project_id(project_id)
         async with self.db_client() as session:
             delete_query=delete(DataChunk).where(DataChunk.chunk_project_id==project_id)
             result=await session.execute(delete_query)
@@ -53,7 +49,7 @@ class ChunkModel(BaseDataModel):
         return result.rowcount
     
     async def get_project_chunks(self, project_id:int,page_no: int=1,page_size:int=50):
-       
+        project_id = ensure_valid_project_id(project_id)
         async with self.db_client()as session:
             get_project_chunk_query=select(DataChunk).where(DataChunk.chunk_project_id==project_id).order_by(DataChunk.chunk_id).offset((page_no-1)*page_size).limit(page_size)
             result=await session.execute(get_project_chunk_query)
@@ -63,6 +59,7 @@ class ChunkModel(BaseDataModel):
     
     
     async def get_total_chunk(self, project_id: int):
+        project_id = ensure_valid_project_id(project_id)
         async with self.db_client() as session:
             async with session.begin():
                 count_sql = select(func.count()).where(DataChunk.chunk_project_id == project_id)
@@ -72,11 +69,12 @@ class ChunkModel(BaseDataModel):
         return total_count
 
     async def get_unindexed_chunks(self, project_id: int, page_no: int = 1, page_size: int = 50):
+        project_id = ensure_valid_project_id(project_id)
         async with self.db_client() as session:
             query = (
                 select(DataChunk)
                 .where(DataChunk.chunk_project_id == project_id)
-                .where(DataChunk.chunk_indexed == False)
+                .where(DataChunk.chunk_indexed.is_(False))
                 .order_by(DataChunk.chunk_id)
                 .offset((page_no - 1) * page_size)
                 .limit(page_size)
@@ -85,11 +83,12 @@ class ChunkModel(BaseDataModel):
             return result.scalars().all()
 
     async def get_unindexed_chunk_count(self, project_id: int):
+        project_id = ensure_valid_project_id(project_id)
         async with self.db_client() as session:
             count_sql = (
                 select(func.count())
                 .where(DataChunk.chunk_project_id == project_id)
-                .where(DataChunk.chunk_indexed == False)
+                .where(DataChunk.chunk_indexed.is_(False))
             )
             result = await session.execute(count_sql)
             return result.scalar()
@@ -106,6 +105,7 @@ class ChunkModel(BaseDataModel):
             await session.commit()
 
     async def reset_chunk_indexed(self, project_id: int):
+        project_id = ensure_valid_project_id(project_id)
         async with self.db_client() as session:
             await session.execute(
                 update(DataChunk)
