@@ -10,7 +10,7 @@ import re
 from typing import List
 
 from helpers.config import get_settings
-from models.db_schemas import Project
+from models.db_schemas import DataChunk, Project
 
 
 DOC_HEADER_OVERHEAD_CHARS = 220

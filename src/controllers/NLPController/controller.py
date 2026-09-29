@@ -6,11 +6,11 @@ from stores.llm.LLMEnums import DocumentType
 from helpers.config import get_settings
 from helpers.safety_config import get_safety_config
 
-from .BaseController import BaseController
+from controllers.BaseController import BaseController
 from domain.safety import SafetyClassifier
 from domain.quality import AnswerQualityEvaluator
 from domain.confidence import ConfidenceScorer
-from .retrieval import RetrievalService
+from controllers.NLPController.retrieval import RetrievalService
 from models.db_schemas import Project
 import json
 FOOTER_RESERVE_CHARS = 900 
@@ -418,7 +418,7 @@ class NLPController(BaseController):
     def _build_confidence(self, retrieved_documents: list, selected_documents: list, question: str = ""):
         # Resolved in this module's namespace so the test patch-point
         # (controllers.NLPController.get_settings) keeps working.
-        from . import get_settings as _pkg_settings  # package attr: patch-point
+        from controllers.NLPController import get_settings as _pkg_settings  # package attr: patch-point
         return self.scorer._build_confidence(retrieved_documents, selected_documents, question=question, settings=_pkg_settings())
 
     @classmethod
