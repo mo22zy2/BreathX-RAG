@@ -36,7 +36,7 @@ async def upload_data(
     org: Optional[str] = Form(None),
     app_settings:Settings =Depends(get_settings), current_user: str = Depends(get_current_user)):
     
-    project_model=await ProjectModel.create_instance(
+    project_model=ProjectModel(
         db_client=request.app.db_client
     )
     
@@ -82,7 +82,7 @@ async def upload_data(
         )
         
         
-    asset_model=await AssetModel.create_instance(db_client=request.app.db_client)
+    asset_model=AssetModel(db_client=request.app.db_client)
 
     asset_config = {}
     if document_name:
@@ -122,7 +122,7 @@ async def process_endpoint(request:Request,project_id:int,process_request:Procce
     do_reset=process_request.do_reset
     app_settings=get_settings()
     
-    project_model=await ProjectModel.create_instance(
+    project_model=ProjectModel(
         db_client=request.app.db_client
     )
     
@@ -137,7 +137,7 @@ async def process_endpoint(request:Request,project_id:int,process_request:Procce
     )
     
     
-    asset_model=await AssetModel.create_instance(db_client=request.app.db_client)
+    asset_model=AssetModel(db_client=request.app.db_client)
 
     project_file_ids={}
     asset_configs={}
@@ -166,7 +166,7 @@ async def process_endpoint(request:Request,project_id:int,process_request:Procce
             
         # project_file_ids=[process_request.file_id]
     else:
-        asset_model=await AssetModel.create_instance(db_client=request.app.db_client)
+        asset_model=AssetModel(db_client=request.app.db_client)
 
         project_files = await asset_model.get_all_project_assets(
     asset_project_id=project.project_id,
@@ -189,7 +189,7 @@ async def process_endpoint(request:Request,project_id:int,process_request:Procce
     
     
     process_controller=ProcessController(project_id)
-    chunk_model=await ChunkModel.create_instance(db_client=request.app.db_client)
+    chunk_model=ChunkModel(db_client=request.app.db_client)
     
 #First retriving the Collection name then call delete collection
     if do_reset==1:
