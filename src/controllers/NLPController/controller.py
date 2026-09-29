@@ -10,6 +10,7 @@ from controllers.BaseController import BaseController
 from domain.safety import SafetyClassifier
 from domain.quality import AnswerQualityEvaluator
 from domain.confidence import ConfidenceScorer
+from domain.contracts import AnswerRequest, AnswerResult
 from controllers.NLPController.retrieval import RetrievalService
 from models.db_schemas import Project
 import json
@@ -34,6 +35,54 @@ class NLPController(BaseController):
             template_parser=template_parser,
             generation_client=generation_client,
             rerank_client=rerank_client,
+        )
+
+    @classmethod
+    def from_app(cls, app) -> "NLPController":
+        """Single construction site for the answering service (keeps routes thin)."""
+        return cls(
+            vectordb_client=app.vectordb_client,
+            generation_client=app.generation_client,
+            embedding_client=app.embedding_client,
+            template_parser=app.template_parser,
+            rerank_client=app.rerank_client,
+        )
+
+    async def answer(self, project: Project, request: AnswerRequest) -> AnswerResult:
+        """Use-case entry point: validated request in, result object out.
+
+        Default resolution (rerank / query expansion) lives here so routes
+        stay free of pipeline policy.
+        """
+        use_rerank = request.rerank if request.rerank is not None else True
+        use_expansion = request.expand_query if request.expand_query is not None else True
+        (answer, full_prompt, chat_history, sources, risk_assessment,
+         confidence, quality, disclaimer, evidence_panel,
+         expanded_query) = await self.answer_rag_question(
+            project=project,
+            query=request.query,
+            limit=request.limit,
+            score_threshold=request.score_threshold,
+            metadata_filter=request.metadata_filter,
+            include_sources=request.include_sources,
+            retrieval_mode=request.retrieval_mode,
+            rerank=use_rerank,
+            rerank_top_k=request.rerank_top_k,
+            expand_query=use_expansion,
+            verify_claims=request.verify_claims,
+            conversation_history=request.conversation_history,
+        )
+        return AnswerResult(
+            answer=answer,
+            full_prompt=full_prompt,
+            chat_history=chat_history,
+            sources=sources,
+            risk_assessment=risk_assessment,
+            confidence=confidence,
+            quality=quality,
+            disclaimer=disclaimer,
+            evidence_panel=evidence_panel,
+            expanded_query=expanded_query,
         )
         
     

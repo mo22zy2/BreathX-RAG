@@ -10,9 +10,11 @@ class BreathXError(Exception):
     status_code: int = 500
     signal: str = "Unexpected error"
 
-    def __init__(self, signal: str = None):
+    def __init__(self, signal: str = None, extra: dict = None):
         if signal is not None:
             self.signal = signal
+        # Extra response fields (e.g. partial counts); merged by the handler.
+        self.extra = extra or {}
         super().__init__(self.signal)
 
 

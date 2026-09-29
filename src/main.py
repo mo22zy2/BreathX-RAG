@@ -88,17 +88,11 @@ setup_metrics(app)
 
 @app.exception_handler(BreathXError)
 async def breathx_error_handler(request, exc: BreathXError):
+    content = {"signal": exc.signal}
+    content.update(exc.extra)
     return JSONResponse(
         status_code=exc.status_code,
-        content={"signal": exc.signal},
-    )
-
-
-@app.exception_handler(BreathXError)
-async def breathx_error_handler(request, exc: BreathXError):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"signal": exc.signal},
+        content=content,
     )
 
 
