@@ -1,8 +1,10 @@
-from .BaseController import BaseController
-from fastapi import UploadFile
+import os
+import re
+
 from models import Response
+
+from .BaseController import BaseController
 from .ProjectController import ProjectController
-import re ,os
 
 PDF_MAGIC_BYTES = b"%PDF-"
 CONTENT_SNIFF_BYTES = 1024

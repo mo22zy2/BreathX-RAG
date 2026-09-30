@@ -1,10 +1,10 @@
-from sqlalchemy import Index
+import uuid
 
-from .breathx_rag_base import SQLAlchemyBase
-from sqlalchemy import ForeignKey, String, Column,Integer,DateTime, func
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
-import uuid
+
+from .breathx_rag_base import SQLAlchemyBase
 
 
 class Asset(SQLAlchemyBase):

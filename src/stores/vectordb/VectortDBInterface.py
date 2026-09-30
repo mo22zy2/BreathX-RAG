@@ -1,5 +1,5 @@
-from abc import abstractmethod,ABC
-from typing import List
+from abc import ABC, abstractmethod
+
 from models.db_schemas import RetrivedDocument
 
 
@@ -19,7 +19,7 @@ class VectorDBInterface(ABC):
     def is_collection_existed(self, collection_name: str) -> bool:
         pass
     
-    def list_all_collections(self) -> List:
+    def list_all_collections(self) -> list:
         pass
     
     @abstractmethod
@@ -56,14 +56,14 @@ class VectorDBInterface(ABC):
                          vector:list,
                          limit:int,
                          score_threshold:float=None,
-                         metadata_filter:dict=None)->List[RetrivedDocument]:
+                         metadata_filter:dict=None)->list[RetrivedDocument]:
         pass
 
     def search_by_keyword(self, collection_name: str,
                           query: str,
                           limit: int,
                           metadata_filter: dict = None,
-                          ts_config: str = "english") -> List[RetrivedDocument]:
+                          ts_config: str = "english") -> list[RetrivedDocument]:
         """
         Keyword (BM25-style ts_rank) search. Implemented by providers that
         support full-text search (e.g. PGVector). Providers without support
@@ -77,7 +77,7 @@ class VectorDBInterface(ABC):
                       limit: int,
                       metadata_filter: dict = None,
                       rrf_k: int = 60,
-                      ts_config: str = "english") -> List[RetrivedDocument]:
+                      ts_config: str = "english") -> list[RetrivedDocument]:
         """
         Hybrid search combining vector similarity and keyword search
         (e.g. Reciprocal Rank Fusion). Providers without support raise

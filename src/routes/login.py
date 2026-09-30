@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
 from passlib.context import CryptContext
+from pydantic import BaseModel
 
 from auth.jwt import create_access_token
 from helpers.config import get_settings

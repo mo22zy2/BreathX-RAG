@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class Response(Enum):
     
     FILE_VALIDATED_SUCCESS="File validate successfully"

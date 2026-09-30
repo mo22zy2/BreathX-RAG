@@ -1,16 +1,20 @@
-from ..VectortDBInterface import VectorDBInterface
+import asyncio
+import json
+import logging
+import re
+
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.sql import text as sql_text
+
+from models.db_schemas import RetrivedDocument
+
 from ..VectorDBEnums import (
+    DistanceMethodEnum,
     PgVectorDistanceMethodEnum,
     PgVectorIndexTypeEnums,
     PgVectorTableSchemaEnums,
-    DistanceMethodEnum,
 )
-from typing import List
-from models.db_schemas import RetrivedDocument
-from sqlalchemy.sql import text as sql_text
-from sqlalchemy.exc import IntegrityError
-import json, re, asyncio
-import logging
+from ..VectortDBInterface import VectorDBInterface
 
 
 class PGVectorProvider(VectorDBInterface):
@@ -89,7 +93,7 @@ class PGVectorProvider(VectorDBInterface):
             self._collections_verified.add(collection_name)
         return record is not None
     
-    async def list_all_collections(self) -> List:
+    async def list_all_collections(self) -> list:
         async with self.db_client() as session:
             async with session.begin():
                 list_tbl = sql_text(

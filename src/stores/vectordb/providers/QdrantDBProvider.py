@@ -1,11 +1,11 @@
-from typing import List
-
-from ..VectortDBInterface import VectorDBInterface
-from ..VectorDBEnums import DistanceMethodEnum
-from qdrant_client import models, QdrantClient # type: ignore
-from models.db_schemas import RetrivedDocument
 import logging
 
+from qdrant_client import QdrantClient, models  # type: ignore
+
+from models.db_schemas import RetrivedDocument
+
+from ..VectorDBEnums import DistanceMethodEnum
+from ..VectortDBInterface import VectorDBInterface
 
 
 class QdrantDBProvider(VectorDBInterface):
@@ -36,7 +36,7 @@ class QdrantDBProvider(VectorDBInterface):
     async def is_collection_existed(self, collection_name:str) -> bool:
         return self.client.collection_exists(collection_name=collection_name)
     
-    async def list_all_collections(self) -> List:
+    async def list_all_collections(self) -> list:
         return self.client.get_collections()
     
     async def get_collection_info(self, collection_name: str) -> dict:
