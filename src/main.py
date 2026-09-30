@@ -76,8 +76,8 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     lifespan=lifespan,
-    docs_url=None if is_production else "/docs",
-    redoc_url=None if is_production else "/redoc",
+    docs_url=None,
+    redoc_url=None,
     openapi_url=None if is_production else "/openapi.json",
 )
 
@@ -110,6 +110,20 @@ app.include_router(nlp.nlp_router)
 app.include_router(login.router)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+if not is_production:
+    # Self-hosted Swagger UI (vendored in src/static/docs/): the default
+    # docs page pulls JS/CSS from a public CDN, which renders blank on
+    # networks without CDN access. Same ENVIRONMENT gate as before.
+    @app.get("/docs", include_in_schema=False)
+    async def selfhosted_swagger_ui():
+        return get_swagger_ui_html(
+            openapi_url="/openapi.json",
+            title=f"{settings.APP_NAME} - Swagger UI",
+            swagger_js_url="/static/docs/swagger-ui-bundle.js",
+            swagger_css_url="/static/docs/swagger-ui.css",
+        )
 
 
 @app.get("/", response_class=HTMLResponse)
